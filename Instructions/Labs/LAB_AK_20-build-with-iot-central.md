@@ -1,408 +1,572 @@
----
+﻿---
 lab:
-    title: 'Lab 20: Build with IoT Central'
-    module: 'Module 11: Build with IoT Central'
+    title: '标题：实验室 20：使用 IoT Central 生成'
+    module: '模块 11：使用 IoT Central 生成'
 ---
 
-# Create your first Azure IoT Central App
+# 创建你的第一个 Azure IoT Central 应用
 
-## Lab Scenario
+当你拥有一个团队时，Azure IoT 服务和技术可以互相协作且易于管理，但是对于一个规模较小、专业程度较低的团队来说，完整的 IoT 解决方案体系结构的实现和支持复杂得多。Azure IoT Central 是一个 SaaS 应用程序，涵盖一整套基础 IoT 技术，包括 Azure IoT 中心、Azure 设备预配系统 (DPS)、Azure 地图、Azure 时序见解、Azure IoT Edge 等。虽然 IoT Central 无法提供直接实现这些技术时所能达到的粒度级别，但它让小规模团队可以轻松管理和监视一组远程设备。
 
-Azure IoT Central enables the easy monitoring and management of a fleet of remote devices.
+除其他目的之外，本实验室将帮助你确定 IoT Central 在哪种情况下才是支持特定方案的正确工具。因此，请做好准备，好了解 IoT Central 有什么功能。
 
-Azure IoT Central encompasses a range of underlying technologies that work great, but can be complicated to implement when many technologies are needed. These technologies include Azure IoT Hub, the Azure Device Provisioning System (DPS), Azure Maps, Azure Time Series Insights, Azure IoT Edge, and others. It's only necessary to use these technologies directly, if more granularity is needed than available through IoT Central.
+## 实验室场景
 
-One of the purposes of this lab is to help you decide if there's enough features in IoT Central to support the scenarios you are likely to need. So, let's investigate what IoT Central can do with a fun and involved scenario.
+Contoso 经营一个冷藏卡车车队，这些冷藏卡车用于在市内和周边地区运输奶酪。你在该区域拥有大量客户，在市内的一个集中位置运营车队。每天都会在卡车上装载产品，调度员会为驾驶员指定运输路线。该系统运行良好，几乎没有问题。但是，如果一个卡车上的制冷系统发生故障，驾驶员和调度员需要讨论最佳解决方案。调度员将把产品调度回仓库进行检查，或者运输到接近车辆当前位置的客户位置。卡车上仍未交付的产品数量以及冷藏区域的温度都是影响决策的因素。
 
-Contoso operates a fleet of refrigerated trucks. You've a number of customers within a city, and a base that you operate from. You command each truck to take its contents and deliver it to any one customer. However, the cooling system may fail on any one of your trucks, and if the contents does start to melt, you'll need the option of instructing the truck to return to base, and then dump the contents. Alternatively, you can deliver the contents to another customer who might be nearer to the truck when you become aware the contents are melting.
+为了做出合理决策，驾驶员和调度员需要有关卡车及其运输的产品的最新信息。他们需要知道每辆卡车在地图上的位置、卡车制冷系统的状态以及卡车上货物的状态。
 
-In order to make these decisions, you'll need an up-to-date picture of all that is going on with your trucks. You'll need to know the location of each truck on a map, the state of the cooling system, and the state of the contents.
+IoT Central 提供了处理这种情况所需的一切信息。 
 
-IoT Central provides all you need to handle this scenario. 
+将创建以下资源：
 
-# In This Lab
+![实验室 20 基础结构](media/LAB_AK_20-architecture.png)
 
-In this lab you will:
+## 本实验室概览
 
-* Create an Azure IoT Central custom app, using the IoT Central * portal
-* Create a device template for a custom device, using the IoT * Central portal
-* Create a programming project to simulate a refrigerated truck, with routes selected by Azure Maps, using Visual Studio Code, or Visual Studio
-* Monitor and command the simulated device, from an IoT Central dashboard
+在本实验室中，你将完成以下活动：
 
-## Exercise 1: Create a Custom IoT Central app
+* 使用 IoT Central 门户创建 Azure IoT Central 自定义应用
+* 使用 IoT Central 门户为自定义设备创建设备模板
+* 使用 Visual Studio Code 或 Visual Studio 创建编程项目，使用 Azure 地图选择的路线模拟冷藏卡车
+* 在 IoT Central 仪表板监控和命令模拟设备
 
-1. Navigate to [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true). It's a good idea to bookmark this URL, as it's the home for all your IoT Central apps.
+## 实验室说明
 
-1. Click on **Build**, then **Custom apps**.
+### 练习 1：创建和配置 Azure IoT Central
 
-1. Your **Application name** can be any friendly name, such as "Refrigerated Trucks". However, the **URL** _must_ be unique, which is why you'll add a unique ID to the end of the URL for the app. For example, `refrigerated-trucks-<your id>`, replacing `<your id>` with some unique ID.
+#### 任务 1：创建初始 IoT Central 应用
 
-1. Leave the **Application template** as **Preview application**.
+1. 导航到 [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true)。
 
-1. Select the free **7 day free trial** option. Seven days is plenty of time to complete the scenario.
+    建议将此 URL 添加为书签，因为它是所有 IoT Central 应用的主页。
 
-1. Fill out your contact info, and click **Create**. Wait a few seconds whilst the app resource is built.
+1. 花点时间向下滚动并阅读该主页的目录。
 
-1. You should now see a **Dashboard** with a few default links.
+1. 在左侧导航菜单上，单击 **“生成”**。
 
-The next time you visit your Azure central home page, select **My apps** in the left-hand menu, and an icon for your  **Refrigerated Trucks** app should appear.
+    请注意，对于某些场景，有几个选项可以提供更高级的起点。
 
-You've now created the app. The next step is to specify a _device template_.
+1. 在 **“特别推荐”** 下，单击 **“自定义应用”**。
 
-## Exercise 2: Create Device Template
+1. 在 **“新建应用程序”** 页面，在 **“应用程序名称”** 下，输入 **“Refrigerated-Trucks-{YOUR-ID}”**。
 
-The data communicated between a remote device, and IoT Central, is specified in a _device template_. The device template encapsulates all the details of the data, so that both the device and IoT Central have all they need to make sense of the communication.
+    请注意，你输入的应用程序名称将用作应用程序 URL 的根（已转换为小写）。
 
-In this Lab, you'll create a device template for a refrigerated truck.
+    虽然应用程序名称可以是任何易记名称，但是 **URL** 必须__具有唯一性。两者无需完全匹配，但是匹配时不易混淆。
 
-## Create a device template
+    将 `{YOUR-ID}` 追加到应用程序名称中有助于确保 URL 的唯一性。
 
-1. Within the [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true) portal (which you may still have open), select **Device Templates** from the menu on the left-hand side.
+1. 在 **“应用程序模板”** 下，保留 **“自定义应用程序”** 的默认值。
 
-1. Click **+ New** to create a new template.
+1. 花一分钟查看 **“账单信息”** 下面的字段。
 
-1. You'll next see a range  of template options, select **IoT device**. We are going to build the template from scratch.
+    **“目录”** 字段用于指定 Azure Active Directory 租户。如果你的组织使用 AAD 租户，则应在此处指定。在本课程中，我们将保留默认值。
 
-    > [!TIP]
-    > Take note of the other options. You may want to use those prebuilt template options in a future project!
+    如果选择包含成本的定价选项，需要指定一个 Azure 订阅。
 
-1. Click **Next: Customize**, then **Next: Review**. Do not select the **Gateway device** box. Then click **Create**.
+1. 在 **“定价计划”** 下，单击 **“免费”**。
 
-1. Enter the name for your device template: "RefrigeratedTruck", and click Enter.
+    请注意，免费选项提供 7 天试用期，包括 5 个免费设备。**“账单信息”** 部分也已更新为 **“联系信息”**。
 
-1. For **Create a capability model**, click **Custom**. You should now see a screen similar to the following image.
+1. 在 **“联系信息”** 下，在每个必填字段中提供你的联系信息。
 
-    > [!NOTE]
-    > Take note of a few important elements that you have created. Including that the template is in Draft form, and the locations of the **+ Add interface**, **Views**, and **Publish** controls.
+    > **注释**：没有与计划相关的承诺使用量或终止费用。如果你有兴趣了解有关 IoT Central 定价的更多信息，**“版本”** 页面包含一个[“获取定价详细信息”](https://aka.ms/iotcentral-pricing-chs)的链接。 
 
-1. You are now ready to add the specifics of the device template. Click **Add interface**, then **Custom**, to start building from a blank interface.
+1. 在屏幕底部，单击 **“创建”**。
 
-An interface defines a set of _capabilities_. We have quite a few to create, to define a refrigerated truck.
+    生成应用资源时等待几秒钟，然后会看到一个带有几个默认链接 **的仪表板**。
 
-### Add sensor telemetry
+1. 关闭“Azure IoT Central”浏览器选项卡。
 
-Telemetry is the data values transmitted by sensors. The most important sensor in our refrigerated truck, monitors the temperature of the contents.
+    下次打开 Azure IoT Central 主页时，在左侧的导航菜单中选择 **“我的应用”**，将会列出你的 **Refrigerated-Trucks-{YOUR-ID}** 应用。
 
-1. Click **+ Add capability**, and enter the following values:
+1. 使用浏览器打开 [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true)。
 
-    | Entry summary | Value |
+1. 在左侧导航菜单上，单击 **“我的应用”**，然后单击 **“Refrigerated-Trucks-{YOUR-ID}”**。
+
+    下一步是指定一个 _设备模板_。
+
+#### 任务 2：创建设备模板
+
+在设备模板__中指定远程设备与 IoT Central 之间通信的数据。设备模板封装了数据的所有详细信息，因此设备和 IoT Central 都拥有实现通信所需的所有信息。
+
+1. 在 Azure IoT Central 应用的 **“仪表板”** 页面，在左侧导航菜单中的 **“应用设置”** 下，单击 **“设备模板”**。
+
+1. 在 **“设备模板”** 下，单击 **“新建”**。
+
+    你可以看到一系列自定义和预配置的设备模板选项。
+
+    > [!提示]
+    > 记下预配置选项。如果你有关联硬件，你可能想要在将来的项目中使用其中一个预配置设备模板。
+
+1. 在 **“创建自定义设备模板”** 下，单击 **“IoT 设备”**。
+
+1. 在页面底部，单击 **“下一步:” “自定义”**，然后单击 **“下一步:”查看**。
+
+    如果在上一个屏幕中选择了 **“网关设备”**，返回并取消选中。
+    
+1. 在 **“查看”** 页面的底部，单击 **“创建”**。
+
+1. 在 **“输入设备模板名称”** 文本框中，输入 **“RefrigeratedTruck”**，然后按 **“Enter”** 键。
+
+1. 在 **“RefrigeratedTruck”** 页面，在 **“创建能力模型”** 下，单击 **“自定义”**。
+
+    现在你可以添加设备模板的详细信息。 
+
+#### 任务 3：添加传感器遥测数据
+
+遥测数据是传感器发送的数据值。冷藏卡车中最重要的传感器监控货物的温度。
+
+1. 在 **“RefrigeratedTruck”** 设备模板页面，单击 **“添加界面”**，然后单击 **“自定义”**
+
+    一个界面定义一组_容量_。要定义冷藏卡车的容量，需要添加大量界面。
+
+    自定义界面允许你从空白界面开始生成。
+
+1. 在 **“能力”** 下，单击 **“添加能力”**
+
+1. 花点时间检查可用字段的类型。
+
+1. 要定义卡车温度传感器的能力，请输入以下字段值：
+
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Contents temperature |
-    | Name | ContentsTemperature |
-    | Capability Type | Telemetry |
-    | Semantic type | Temperature |
-    | Schema | Double |
-    | Unit | <sup>o</sup>C |
+    | 显示名称 | 货物温度 |
+    | 名称 | ContentsTemperature |
+    | 能力类型 | 遥测数据 |
+    | 语义类型 | 温度 |
+    | 架构 | 双 |
+    | 单位 | <sup>o</sup>C |
 
-1. Your screen should now look like the following image.
+1. 花一分钟时间再次检查你输入的信息。
 
-    > [!IMPORTANT]
-    > The names entered for the interface must be entered _exactly_ as shown in this unit. This is because an exact match is needed between these names, and entries in the code you'll be adding later in this lab.
+    > **重要事项**：
+    > 你稍后在本实验室中添加的代码使用上面列出的名称，因此为界面输入的名称必须与所示名称_完全_相同。
 
-Let's add the rest of the template.
+#### 任务 4：添加状态和事件遥测
 
-### Add state telemetry
+状态很重要，可以让操作员了解当前的情况。IoT Central 中的状态是与一系列值关联的名称。在本实验室的后续过程中，你将选择一种颜色与每个状态值相关联，使其易于识别。
 
-States are important, they let the operator know what is going on. A state in IoT Central is a name associated with a range of values. In addition, you later get to choose a color to associate with each value.
+1. 在 **“能力”** 下，单击 **“添加能力”**。
 
-1. Use the **+ Add capability** control to add a state for the truck's refrigerated contents: one of _empty_, _full_, or _melting_.
+1. 要定义卡车货物状态的能力，请输入以下字段值：
 
-    | Entry summary | Value |
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Contents state |
-    | Name | ContentsState |
-    | Capability Type | Telemetry |
-    | Semantic type | State |
-    | Value schema | String |
+    | 显示名称 | 货物状态 |
+    | 名称 | ContentsState |
+    | 能力类型 | 遥测数据 |
+    | 语义类型 | 状态 |
+    | 值架构 | 字符串 |
 
-1. Now, click **+**, and enter "empty" for the **Display name**, and **Value**. The **Name** field should automatically be populated with "empty". So, all three fields are identical, containing "empty".
+1. 在 **“值架构”** 下，请注意提示你 **“必须定义复杂类型”** 的消息。
 
-1. Add two more state values: "full" and "melting". Again, the same text should appear in the **Display name**, **Name**, and **Value**.
+    为了简化实验室方案，你将卡车的货物状态定义为以下状态的其中之一：“空”__、“满”__或“融化”__。 
 
-1. Carefully check each capability before moving on. 
+1. 在 **“必须定义复杂类型”** 消息下，单击 **“+”**。
 
-1. Now, to add some uncertainty to our simulation, let's add a failure state for the cooling system. If the cooling system fails, as you'll see in the following units, the chances of the contents melting increase considerably! Add _on_, _off_ and _failed_ entries for a cooling system. Start by clicking **+ Add capability**, and add another state.
+1. 在 **“显示名称”** 下，输入 **“空”**
 
-    | Entry summary | Value |
+     **“名称”** 字段应自动填充 **“空”**。
+
+1. 在 **“值”** 下，输入 **“空”**
+
+    三个字段都应包含 **“空”**。
+
+1. 在你刚输入的字段下方，单击 **“+”**。
+
+1. 使用上述流程添加另外两个状态值： **“满”** 和 **“融化”**。
+
+    同样，每个其他状态值选项的 **“显示名称”**、 **“名称”** 和 **“值”** 字段中应包含相同的文本。
+
+1. 请仔细检查每个能力，然后继续。
+
+    现在，为了在模拟中增加不确定性，我们为卡车的制冷系统添加一个故障状态。如果制冷系统出现故障（将在本实验室的后续过程中看到），货物“融化”的可能性会大幅增加！你将为卡车的制冷系统添加“开”__、“关”__ 和“故障”__条目。 
+
+1. 在 **“RefrigeratedTruck”** 设备模板页面，在 **“RefrigeratedTruck”** 下，单击 **“添加能力”**。
+
+1. 要定义卡车制冷系统状态的能力，请输入以下字段值：
+
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Cooling system state |
-    | Name | CoolingSystemState |
-    | Capability Type | Telemetry |
-    | Semantic type | State |
-    | Value schema | String |
+    | 显示名称 | 制冷系统状态 |
+    | 名称 | CoolingSystemState |
+    | 能力类型 | 遥测数据 |
+    | 语义类型 | 状态 |
+    | 值架构 | 字符串 |
 
-1. Now add three values: on, off, and failed. Make sure that each word appears in the **Display name**, **Name**, and **Value** fields.
+1. 在 **“必须定义复杂类型”** 消息下，单击 **“+”**，然后使用上述流程添加以下状态值选项：
 
-1. A more complex state is the state of the truck itself. If all goes well, a truck's normal routing might be: _ready_, _enroute_, _delivering_, _returning_, _loading_, and back to _ready_ again.  However, you should add the _dumping_ state to cater for when melted contents need to be disposed of! Using the same process as for the last two steps, create this new state.
+    * on
+    * 关
+    * 故障
 
-    | Entry summary | Value |
+    确保 **“显示名称”**、 **“名称”** 和 **“值”** 三个字段都重复了三个状态值选项（开、关、故障）。
+
+    卡车本身需要定义更复杂的状态。如果一切正常，卡车的正常路线可能是：_就绪_、_途中_、_交付_、_返回_、_装货_，然后再次回到_就绪_。但是，需要将融化的货物运回仓库进行检查（还可能需要处置）时，你应添加一个适合这种情况的“废弃”__状态。 
+
+1. 使用与定义之前的状态功能相同的流程，创建以下新功能：
+
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Truck state |
-    | Name | TruckState |
-    | Capability Type | Telemetry |
-    | Semantic type | State |
-    | Value schema | String |
+    | 显示名称 | 卡车状态 |
+    | 名称 | TruckState |
+    | 能力类型 | 遥测数据 |
+    | 语义类型 | 状态 |
+    | 值架构 | 字符串 |
 
-### Add event telemetry
+    请使用以下状态值选项：
 
-Events are issues triggered by the device, and communicated to the IoT Central app. Events can be one of three types: _Error_, _Warning_, or _Informational_.
+    * 就绪
+    * 途中
+    * 交付
+    * 返回
+    * 装货
+    * 废弃
 
-One possible event a device might trigger is a conflicting command. An example might be a truck is returning empty from a customer, but receives a command to deliver its contents to another customer. If a conflict occurs, it's a good idea for the device to trigger an event to warn the operator of the IoT Central app.
+    你需要指定的下一个功能类型是事件。事件是设备触发并传输给 IoT Central 应用的问题。事件可以是以下三种类型之一：_错误_、_警告_或_信息_。
 
-Another event might be just to acknowledge, and record, the customer ID that a truck is to deliver to.
+1. 要创建事件能力，请单击 **“添加能力”**，然后创建以下新能力：
 
-1. Use **+ Add capability**, then create an event as follows.
-
-    | Entry summary | Value |
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Event |
-    | Name | Event |
-    | Capability Type | Telemetry |
-    | Semantic type | Event |
-    | Schema | String |
+    | 显示名称 | 事件 |
+    | 名称 | 事件 |
+    | 能力类型 | 遥测数据 |
+    | 语义类型 | 事件 |
+    | 架构 | 字符串 |
 
-### Add location telemetry
+    设备可能触发的一个可能事件是命令冲突。例如，一辆卡车正在从客户处空车返回，但是收到了将其货物交付给另一位客户的命令。如果发生冲突，设备最好触发一个事件，以警告 IoT Central 应用的操作员。
 
-A location is probably the most important, and yet one of the easiest measurements to add to a device template. Under the hood, it consists of a latitude, longitude, and an optional altitude, for the device.
+    另一个事件可能是确认并记录卡车要前往的客户的客户 ID。
 
-1. Use **+ Add capability**, and add a location for our truck as follows.
+#### 任务 5：添加位置遥测数据
 
-    | Entry summary | Value |
+位置可能是最重要的信息，但也是在设备模板中添加的最简单的测量值之一。在后台，位置由设备的纬度、经度和可选海拔组成。
+
+1. 要创建位置能力，请单击 **“添加能力”**，然后创建以下新能力：
+
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Location |
-    | Name | Location |
-    | Capability Type | Telemetry |
-    | Semantic type | Location |
-    | Schema | Geopoint |
+    | 显示名称 | 位置 |
+    | 名称 | 位置 |
+    | 能力类型 | 遥测数据 |
+    | 语义类型 | 位置 |
+    | 架构 | 地理位置 |
 
-### Add properties
+#### 任务 6：添加属性
 
-A property of a device is typically a constant value, that is communicated to the IoT Central app when communication is first initiated. In our refrigerated truck scenario, a good example of a property is the license plate of the truck, or some similar unique truck ID.
+设备的属性通常是常数值，首次发起通信时属性会将其传输给 IoT Central 应用。在冷藏卡车场景中，卡车的车牌或类似的唯一卡车 ID 就是属性的一个很好的例子。
 
-Properties can also be device configuration data. We will define an _optimal temperature_ for the truck contents as a property. This optimal temperature might change with different types of content, different weather conditions, or whatever might be appropriate. A setting has an initial default value, which may not need to be changed, but the ability to change it easily and quickly is there, if needed. This kind of property is called a _writable property_.
+属性也可以用于设备配置数据。你将卡车货物的最佳温度__定义为一个属性。最佳温度可能随不同货物类型、不同天气条件或其他适用条件而变化。设置有初始默认值，该默认值可能无需更改，但是可以根据需要轻松、快速地对其进行更改。这种属性称为“可写属性”__。
 
-A property is a single value. If more complex sets of data need to be transmitted to a device, a Command (see below) is the more appropriate way of handling it.
+属性是单一值。如果需要将更复杂的数据集传输到设备，更合适的处理方法是使用命令（参见下文）。
 
-1. Use **+ Add capability**, and add the truck ID property.
+1. 要为卡车 ID 创建属性能力，请单击 **“添加能力”**，然后创建以下新能力：
 
-    | Entry summary | Value |
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Truck ID |
-    | Name | TruckID |
-    | Capability Type | Property |
-    | Semantic type | None |
-    | Schema | String |
-    | Writable | Off |
-    | Unit | None |
+    | 显示名称 | 卡车 ID |
+    | 名称 | TruckID |
+    | 能力类型 | 属性 |
+    | 语义类型 | 无 |
+    | 架构 | 字符串 |
+    | 可写 | 关 |
+    | 单位 | 无 |
 
-1. Next, add the optimal temperature property.
+1. 要为最佳温度创建属性能力，请单击 **“添加能力”**，然后创建以下新能力：
 
-    | Entry summary | Value |
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Optimal Temperature |
-    | Name | OptimalTemperature |
-    | Capability Type | Property |
-    | Semantic type | None |
-    | Schema | Double |
-    | Writable | On |
-    | Unit |  <sup>o</sup>C  |
+    | 显示名称 | 最佳温度 |
+    | 名称 | OptimalTemperature |
+    | 能力类型 | 属性 |
+    | 语义类型 | 无 |
+    | 架构 | 双 |
+    | 可写 | 开 |
+    | 单位 |  <sup>o</sup>C  |
 
-### Add commands
+#### 任务 7：添加命令
 
-Commands are sent by the operator of the IoT Central app to the remote devices. Commands are similar to writable properties, but a command can contain any number of input fields, whereas a writable property is limited to a single value.
+IoT Central 应用的操作员将命令发送到远程设备。命令与可写属性类似，但是命令可以包含任意数量的输入字段，而可写属性仅限于单一值。
 
-For refrigerated trucks, there are two commands you should add: a command to deliver the contents to a customer, and a command to recall the truck to base.
+对于冷藏卡车，你应该添加两个命令：一个将货物交付给客户的命令，以及一个将卡车召回基地的命令。
 
-1. Use **+ Add capability**, and add the first command.
+1. 要创建将货物交付给客户的命令能力，请单击 **“添加能力”**，然后创建新以下新能力：
 
-    | Entry summary | Value |
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Go to customer |
-    | Name | GoToCustomer |
-    | Capability Type | Command |
-    | Command | Synchronous |
+    | 显示名称 | 前往客户位置 |
+    | 名称 | GoToCustomer |
+    | 能力类型 | 命令 |
+    | 命令 | 同步的 |
 
-1. When you turn on the **Request** option, you'll be able to enter more details of the command.
+1. 在 **“命令”** 下，单击 **“请求”**。
 
-    | Entry summary | Value |
+    打开 **“请求”** 选项时，可以输入该命令的更多详细信息。
+
+1. 要完成命令功能的 **“请求”** 部分，请输入以下字段值：
+
+    | 字段 | 值 |
     | --- | --- |
-    | Request | On |
-    | Display name | Customer ID |
-    | Name | CustomerID |
-    | Schema | Integer |
-    | Unit | None |
+    | 请求 | 开 |
+    | 显示名称 | 客户 ID |
+    | 名称 | CustomerID |
+    | 架构 | 整数 |
+    | 单位 | 无 |
 
-1. Enter another new command, for recalling the truck.
+1. 要创建召回卡车的命令能力，请单击 **“添加能力”**，然后创建以下新能力：
 
-    | Entry summary | Value |
+    | 字段 | 值 |
     | --- | --- |
-    | Display Name | Recall |
-    | Name | Recall |
-    | Capability Type | Command |
-    | Command | Synchronous |
+    | 显示名称 | 召回 |
+    | 名称 | 召回 |
+    | 能力类型 | 命令 |
+    | 命令 | 同步的 |
 
-1. This time there are no additional parameters for the command, so leave **Request** off.
+    此命令没有其他参数，因此将 **“请求”** 保留在关闭状态。
 
-1. Click **Save**.
+1. 在靠近页面顶部的位置，单击 **“保存”**。
 
-Before going any further carefully double check your interface. After an interface has been published, there are very limited editing options. It's important to get it right before publishing. If you click on the name of the device template, in the menu that ends with the **Views** option, you'll get a summary of the capabilities.
+    在进行任何进一步的操作之前，请再次仔细检查界面。界面发布后，编辑选项将非常有限。因此要在发布之前确保正确，这一步很重要。 
 
-## Publish the template
+    如果单击设备模板的名称，在以 **“视图”** 选项结尾的菜单中，可以看到功能摘要。
 
-1. Click **Save** again, if you've made any changes since the last time you saved.
+#### 任务 8：发布模板
 
-1. Click **Publish**. You should see that the annotation changes from **Draft** to **Published**.
+1. 如果在上次保存以后进行了任何更改，请单击 **“保存”**。
 
-Preparing a device template does take some care and some time.
+1. 在 **“RefrigeratedTruck”** 设备模板的右上角，单击 **“发布”**。
 
-In the next task, you use the capabilities of the device template to prepare a controllers dashboard. Preparing views can be done before, or after, a device template is published.
+    > **注释**：如果弹出要求你确认的对话框，请单击 **“发布”**。
 
-## Exercise 3: Monitor Simulated Device
+    你可以看到注释从 **“草稿”**更改为 **“已发布”**。
 
-You'll first create a dashboard showing all the capabilities of the device template. Next, you'll create a real device, and record the connection settings needed for the remote device app.
+准备设备模板确实需要花费一些精力和时间。
 
-## Create a rich dashboard
+在下一个练习中，你将使用设备模板的能力准备控制器仪表板。可以在发布设备模板之前或之后完成视图的准备。
 
-1. Click on the **Views** menu option, then on **Visualizing the device**.
+### 练习 3：监控模拟设备
 
-1. You should now see a list of all the **Telemetry**, **Properties**, and **Commands** you created, each with a check box.
+要开始本练习，你需要创建一个显示设备模板所有能力的仪表板。之后，你将使用设备模板创建设备，并记录远程设备应用所需的连接设置。
 
-1. Click the **Location** check box, then **Add tile**. Dashboards are made up of tiles. The reason we choose the location tile first, is that we want to expand it from its default size. Drag the lower right-hard corner of the tile, so that the tile is at least twice the default size. This tile is the most fun, it will show the location of the truck on a map of the world.
+#### 任务 1：创建丰富的仪表板
 
-1. Before adding more tiles, change the **View name** to something more specific, "Truck view", or something similar.
+1. 在 **“RefrigeratedTruck”** 设备模板的左侧菜单上，单击 **“视图”**，然后单击 **“可视化设备”**。
 
-1. Now, click each of the rest of the telemetry and properties capabilities in turn, starting at the top, and **Add tile**. We are going for function over form here, we can prettify the dashboard later. For now, we just want a dashboard that will confirm all the telemetry being sent from our remote device. There's no need to add the commands to the dashboard, though that option does exist.
+1. 花一点时间查看可用的 **遥测**、**属性** 和 **命令** 列表。
 
-1. When you've added all the tiles, scroll around a bit on your dashboard, and check out the wording in the tiles.
+    这些是你创建的功能，每个功能都有一个选择复选框。
 
-1. You can drag tiles around, and the portal will try to rearrange them neatly.
+1. 在 **“遥测数据”** 下，单击 **“位置”**，然后单击 **“添加磁贴”**。
 
-1. When you are satisfied with your dashboard, click **Save**, then click **Publish**. You'll now notice that in the dialog that appears, that the **Views** entry is **Yes**. Click **Publish** in the dialog.
+    仪表板由磁贴组成，你可以排列所选磁贴并调整其大小。“位置”磁贴将显示卡车在世界地图上的位置，首先创建该磁贴，你可以有足够的空间来调整地图大小。 
 
-You can create as many views as you want to, giving each a friendly name. For this lab though, one dashboard will work well.
+1. 将鼠标指针悬停在磁贴的右下角，然后拖动这个角，使磁贴的高度和宽度约为默认大小的两倍。
 
-The next step is to create a device.
+1. 在 **“视图名称”** 下，输入 **“卡车视图”**。
 
-## Create a real device
+1. 在 **“遥测数据”** 下，单击 **“货物状态”**，然后单击 **“添加磁贴”**。
 
-By "real" IoT Central understands that there's a remote app running. The app can be in a real device, taking input from real sensors, or running a simulation. Both options are treated as a connection to a _real_ device.
+1. 对剩下的每一个遥测功能，从上到下重复之前的步骤。
 
-1. Click **Devices** in the left-hand menu.
+    回想一下，你已经添加了“位置”磁贴。
 
-1. Click **RefrigeratedTruck** in the **Devices** menu, to ensure the device we create uses this device template. The device template you select will be shown in bold text.
+1. 使用相同的从上到下的流程添加“属性”能力。
 
-1. Click **+ New**. Verify in the dialog that the device name includes the **RefrigeratedTruck** text. If it doesn't, you've not selected the right device template.
+    在实验室的后续部分，你将有机会在仪表板上排列磁贴。现在，你只想通过仪表板确认所有遥测数据均由远程设备发送。
 
-1. Change the **Device ID** to a friendlier name, say "RefrigeratedTruck1".
+    虽然有在仪表板中添加命令的选项，但现在无需进行这一步。
 
-1. Change the **Device name** to a friendlier name, say "RefrigeratedTruck - 1".
+1. 花一分钟查看仪表板。
 
-1. Leave the **Simulated** setting at **Off**. We are going to be building a real truck here. Well, a simulated _real_ truck! Setting this value to **On** instructs IoT Central to pump out random values for our telemetry. These random values can be useful in validating a device template.
+    滚动查看你的仪表板。检查磁贴的内容，并考虑如何使用这些信息。
 
-1. Click **Create**. Wait a few seconds, then your device list should be populated with a single entry. Note the **Device status** is **Registered**. Not until the device status is **Provisioned** will the IoT Central app accept a connection to the device. The coding task that follows shows how to provision a device.
+1. 快速排列磁贴的位置。 
 
-1. Click on the **RefrigeratedTruck - 1** name, and you'll see the live dashboard, with lots of **Waiting for data** messages.
+    现在不要在这一步花费太多时间，但是请注意，你可以拖动磁贴，门户将尝试将其重新排列整齐。
 
-1. Click on the **Commands** entry in the bar that includes **Truck view**. Notice that the two commands you entered are ready to be run.
+1. 单击 **“保存”**，然后单击 **“发布”**。
 
-The next step is to create the keys that will allow a remote device to communicate with this app.
+    请注意，“发布”对话框现在在 **“视图”** 旁边显示 **“是”**。 
 
-### Record the connection keys
+1. 在“发布”对话框上，单击 **“发布”**。
 
-1. Click **Connect** in the top-right menu. Do _not_ click **Connect to gateway**.
+你可以根据需要创建多个视图，并为每个视图起一个易记名称。
 
-1. In the **Device connection** dialog that follows, carefully copy the **ID scope**, **Device ID**, and **Primary key** to a text file. Typically, use a tool like Notepad, and save the file with a meaningful name, say "Truck connections.txt".
+在下一个任务中，你将在设备模板中创建设备。
 
-1. Leave the **Connect method** as **Shared access signature (SAS)**.
+#### 任务 2：创建真实设备
 
-1. When you've saved off the IDs and key, click **Close** on the dialog.
+IoT Central 可以连接到具有真实传感器的物理设备，也可以连接到基于算法生成数据的模拟设备。在这两种情况下，IoT Central 均知晓远程应用正在生成遥测数据，无论是哪种情况，它都将连接的设备视为“真实”设备。
 
-Leave the IoT portal open in your browser, waiting as it is.
+1. 在左侧导航菜单上，单击 **“设备”**。
 
-## Exercise 4: Create a free Azure Maps account
+1. 在 **“设备”** 菜单上，在 **“所有设备”** 下，单击 **“RefrigeratedTruck”**
 
-If you do not already have an Azure Maps account, you'll need to create one.
+    请注意，屏幕已刷新，且所选的设备模板现在以粗体文本显示。如果你有大量设备模板，这有助于确保你使用正确的设备模板。 
 
-1. Navigate to [Azure Maps](https://azure.microsoft.com/services/azure-maps/?azure-portal=true).
+1. 在顶部菜单中，单击 **“新建”**。
 
-1. Follow the prompts to create a free account. When your account is set up, you'll need the **Subscription Key** for the account. Copy and paste this key into your text document, with a note that it applies to Azure Maps.
+1. 在 **“创建新设备”** 对话框上，在 **“设备名称”**下，验证 **“RefrigeratedTruck”** 是否为前缀。
 
-1. You can (optionally) verify your Azure Maps subscription key works. Save the following HTML to an .html file. Replace the **subscriptionKey** entry with your own key. Then, load the file into a web browser. Do you see a map of the world?
+    这是确保你选择正确设备模板的另一个方法。
 
-```html
-<!DOCTYPE html>
-<html>
+1. 在 **“设备 ID”** 下，输入 **“RefrigeratedTruck1”**
 
-<head>
-    <title>Map</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+1. 在 **“设备名称”** 下，输入 **“RefrigeratedTruck - 1”**
 
-    <!-- Add references to the Azure Maps Map control JavaScript and CSS files. -->
-    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css">
-    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+1. 在 **“模拟”** 下，确保已选中 **“关”**。
 
-    <!-- Add a reference to the Azure Maps Services lab JavaScript file. -->
-    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas-service.min.js"></script>
+    回想一下，IoT Central 将物理设备和模拟设备的连接同等对待。两者都是远程应用，而且都是真实应用。你将在这里生成一辆真实的卡车。模拟的_真实_卡车！ 
 
-    <script>
-        function GetMap() {
-            //Instantiate a map object
-            var map = new atlas.Map("myMap", {
-                //Add your Azure Maps subscription key to the map SDK. Get an Azure Maps key at https://azure.com/maps
-                authOptions: {
-                    authType: 'subscriptionKey',
-                    subscriptionKey: '<your Azure Maps subscription key>'
-                }
-            });
-        }
-    </script>
-    <style>
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            padding: 0;
-            margin: 0;
-        }
+    将该模拟值设置为 **“开”**，会指示 IoT Central 从你的遥测数据中提取随机值。这些随机值适用于验证设备模板，但是在本实验室中，你将使用自己的模拟设备（卡车）来模拟遥测数据。
 
-        #myMap {
-            width: 100%;
-            height: 100%;
-        }
-    </style>
-</head>
+1. 在 **“创建新设备”** 对话框中，单击 **“创建”**。
 
-<body onload="GetMap()">
-    <div id="myMap"></div>
-</body>
+    等待几秒钟后，你的设备列表会填充一个条目。 
 
-</html>
-```
+    请注意将 **“设备状态”** 设置为 **“已注册”**。在 **“设备状态”** 为 **“已预配”** 时，IoT Central 应用才会接受与设备的连接。在本实验室的后续部分，有一个向你介绍如何预配设备的编码任务。
 
-## Next steps
+1. 在 **“设备名称”** 下，单击 **“RefrigeratedTruck - 1”**。
 
-You've now completed the preparatory steps of connecting your first IoT Central app to real devices. Good work!
+    将显示你的实时仪表板（有很多 **“正在等待数据”** 消息）。
 
-The next step is to create the device app.
+1. 在设备仪表板的 **“RefrigeratedTruck - 1”** 标题下方，单击 **“命令”**
 
-## Exercise 5: Create a Programming Project for a Real Device
+    请注意，你输入的两个命令已经列出，并且可以运行。
 
-In this task, you are going to create a programming project to simulate a sensor device in a refrigerated truck. This simulation enables you to test the code long before requiring a real truck!
+下一步将是创建密钥，使远程设备可以与 IoT Central 应用进行通信。
 
-IoT Central treats this simulation as "real" because the communication code between the device app and the IoT Central app is the same for a real truck. In other words, if you do run a refrigerated truck company, you would start with simulated code similar to the code in this task. After this code works to your satisfaction, the simulation-specific code would be replaced with code that receives sensor data. This limited update makes writing the following code a valuable experience.
+#### 任务 3：记录连接密钥
 
-## Create the device app
+1. 在顶部菜单中，单击 **“连接”**。
 
-Using Visual Studio Code, build the device sensor app.
+    _请勿_单击 **“附加到网关”**。
 
-1. Open a terminal in Visual Studio Code, and create a folder called "RefrigeratedTruck" (enter `mkdir RefrigeratedTruck`). Navigate to the RefrigeratedTruck folder.
+1. 在 **“设备连接”** 对话框中，谨慎复制 **“ID 范围”**、 **“设备 ID”** 和 **“主键”** 的值，并将其保存到名为  **“Truck-connections.txt”** 的文本文件中。
 
-1. Enter the following command in the terminal: `dotnet new console`. This command creates a Program.cs file in your folder, along with a project file.
+    使用记事本（或其他文本编辑器）将值保存到文本文件，提供有意义的名称，例如 Truck-connections.txt。
 
-1. Enter `dotnet restore` in the terminal. This command gives your app access to the required .NET packages.
+1. 在 **“连接方式”** 下，确保已选中 **“共享访问签名 (SAS)”**。
 
-1. In the terminal, install the required libraries:
+1. 在对话框底部，单击 **“关闭”**
+
+将 IoT 门户在浏览器中保持打开状态，并按原样等待。
+
+### 练习 4：创建免费 Azure 地图帐户
+
+如果你还没有 Azure Maps 帐户，则需要创建一个。
+
+1. 打开一个新的浏览器选项卡，然后导航到 [“Azure 地图”](https://azure.microsoft.com/services/azure-maps/?azure-portal=true)。
+
+1. 要创建免费帐户，请单击右上角的 **“开始免费试用”**，然后按照提供的说明进行操作。
+
+    > **注释**：你可以使用在本课程中一直使用的订阅和资源组来创建 Azure 地图帐户，使用 AZ-220-MAPS 作为帐户名，并使用标准 S1 作为定价层。
+
+1. 创建 Azure 地图帐户后，将 Azure 地图帐户订阅密钥（主密钥）复制到 Truck-connections.txt 文本文件。
+
+    如果使用本课程中使用的 Azure 订阅创建 Azure 地图帐户，可以在 Azure 门户中找到该帐户的主密钥，如下所示：打开“Azure 地图 (AZ-220-MAPS)”边栏选项卡，然后打开“身份验证”窗格。你将看到已列出的主密钥。
+
+    > **注释**：如果你想验证你的主密钥（用于 Azure 地图）是否正确/工作。将以下 HTML 保存到 .html 文件。用主键的值替换 `'<your Azure Maps subscription key>'` 占位符，然后将文件加载到 Web 浏览器中。你可以看到显示的世界地图。
+
+    ```html
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+        <title>Map</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <!-- 添加对 Azure Maps Map Control JavaScript 和 CSS 文件的引用。-->
+        <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css">
+        <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+
+        <!-- Add a reference to the Azure Maps Services lab JavaScript file. -->
+        <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas-service.min.js"></script>
+
+        <script>
+            function GetMap() {
+                //实例化地图对象
+                var map = new atlas.Map("myMap", {
+                    //将你的 Azure 地图订阅密钥添加到地图 SDK 中。访问 https://azure.com/maps 获取 Azure 地图密钥
+                    authOptions: {
+                        authType: 'subscriptionKey',
+                        subscriptionKey: '<your Azure Maps subscription key>'
+                    }
+                });
+            }
+        </script>
+        <style>
+            html,
+            body {
+                width: 100%;
+                height: 100%;
+                padding: 0;
+                margin: 0;
+            }
+
+            #myMap {
+                width: 100%;
+                height: 100%;
+            }
+        </style>
+    </head>
+
+    <body onload="GetMap()">
+        <div id="myMap"></div>
+    </body>
+
+    </html>
+    ```
+
+现在，你已经完成了将第一个 IoT Central 应用连接到真实设备的准备步骤。做得好！
+
+下一步是创建设备应用。
+
+### 练习 5：为真实设备创建编程项目
+
+在此任务中，你将创建一个编程项目来模拟冷藏卡车中的传感器设备。此模拟使你能够在需要物理设备之前测试代码。
+
+IoT Central 将这种模拟视为“真实”，因为设备应用与 IoT Central 应用之间的通信代码与物理设备/卡车的通信代码相同。换句话说，如果你经营一家冷藏卡车公司，你将从与本任务中的代码类似的模拟代码开始。验证代码工作正常后，模拟专用代码将被替换为用于接收传感器数据的代码。这种有限更新使以下代码的编写过程成为宝贵的经验。
+
+#### 任务 1：创建设备应用
+
+使用 Visual Studio Code 生成设备传感器应用。
+
+1. 打开一个新的 Visual Studio Code 实例。
+
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**。
+
+1. 在 **“打开文件夹”** 对话框顶部，单击 **“新建文件夹”**，输入 **“RefrigeratedTruck”**，然后按 **Enter**。
+
+    你可以在本课程的“实验室 20”文件夹下或你选择的其他位置创建“RefrigeratedTruck”文件夹。
+
+1. 单击 **“RefrigeratedTruck”**，然后单击 **“选择文件夹”**。
+
+    此时将打开“Visual Studio Code 资源管理器”窗格。
+
+1. 要打开集成终端，在 **“视图”** 菜单上单击 **“终端”**。
+
+    你可以看到终端命令提示符中列出的“RefrigeratedTruck”文件夹。由于以下命令将在当前文件夹中运行，因此这一点很重要。
+ 
+1. 要创建新的控制台应用，在终端命令提示符下输入以下命令：
+
+    ```cmd/sh
+    dotnet new console
+    ```
+
+    此命令将在你的文件夹中创建一个 Program.cs 文件以及一个项目文件。
+
+1. 为了确保你的应用有权访问所需的 .NET 软件包，请在终端命令提示符下输入以下命令：
+
+    ```cmd/sh
+    dotnet restore
+    ```
+
+1. 要安装所需的库，请在终端命令提示符下输入以下命令：
 
     ```CLI
     dotnet add package AzureMapsRestToolkit
@@ -412,33 +576,22 @@ Using Visual Studio Code, build the device sensor app.
     dotnet add package System.Text.Json
     ```
 
-1. From the **File** menu, open up the Program.cs file, and delete the default contents.
+1. 在 **“资源管理器”** 窗格中，单击 **“Program.cs”**。
 
-1. After you've entered the code below into the Program.cs file, you can run the app with the command `dotnet run`. This command will run the Program.cs file in the current folder, so ensure you are in the `RefrigeratedTruck` folder.
+1. 在代码编辑器窗格中，删除 Program.cs 文件的内容。
 
-1. Open Visual Studio, and create a new **Visual C#/Windows Desktop** project. Select **Console App (.NET Framework)**.
+你现在可以添加下面的代码了。
 
-1. Give the project a friendly name, such as "RefrigeratedTruck".
+#### 任务 2：写入设备应用
 
-1. Under **Tools/NuGet Package Manager**, select **Manage NuGet Packages for Solution**. Install the following libraries:
-    * **AzureMapsRestToolkit**
-    * **Microsoft.Azure.Devices.Client**
-    * **Microsoft.Azure.Devices.Provisioning.Client**
-    * **Microsoft.Azure.Devices.Provisioning.Transport.Mqtt**
-    * **System.Text.Json**
+在此任务中，你将为冷藏卡车一次一个部分生成模拟设备应用。提供每个部分的简要说明。
 
-1. Delete the default contents of the Program.cs file.
+为了尽可能简化此过程，应按此处列出的顺序将每个附加代码部分追加到文件末尾。
 
-1. Add all the code that follows to the Program.cs file.
+> **注释**： 
+> 如果你想跳过此任务，并将所有代码加载到你的应用中，请从 [MicrosoftDocs/mslearn-your-first-iot-central-app](https://github.com/MicrosoftDocs/mslearn-your-first-iot-central-app) 下载 Program.cs 的所有内容，并将其复制到项目的 Program.cs 文件中。如果复制此代码（并替换连接和订阅字符串），将直接转到下一个任务，然后开始测试！
 
-## Write the device app
-
-In the blank Program.cs file, insert the following code. Each additional section of code should be appended to the end of the file, in the order listed here.
-
-   > [!NOTE]
-   > If you would like to skip this task, and load all of the code into your app, then download and copy all of the contents of Program.cs from [MicrosoftDocs/mslearn-your-first-iot-central-app](https://github.com/MicrosoftDocs/mslearn-your-first-iot-central-app) into the Program.cs file of your project. If you copy this code (and replace the connection and subscription strings) then go straight to the next task, and start testing!
-
-1. Add the `using` statements, including for Azure IoT Central and Azure Maps.
+1. 要添加所需的 `using` 语句，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
     using System;
@@ -454,7 +607,9 @@ In the blank Program.cs file, insert the following code. Each additional section
     using AzureMapsToolkit.Common;
     ```
 
-1. Add the namespace, class, and global variables.
+    这些 `using` 语句提供了对代码使用的资源的轻松访问，例如 Azure IoT Central 和 Azure 地图。
+
+1. 要添加命名空间、类和全局变量，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
     namespace refrigerated_truck
@@ -483,13 +638,13 @@ In the blank Program.cs file, insert the following code. Each additional section
                 failed
             }
 
-            // Azure maps service globals.
+            // Azure 地图服务全局变量。
             static AzureMapsServices azureMapsServices;
 
-            // Telemetry globals.
+            // 遥测数据全局变量。
             const int intervalInMilliseconds = 5000;        // Time interval required by wait function.
 
-            // Refrigerated truck globals.
+            // 冷藏卡车全局变量。
             static int truckNum = 1;
             static string truckIdentification = "Truck number " + truckNum;
 
@@ -500,10 +655,10 @@ In the blank Program.cs file, insert the following code. Each additional section
             const double tooWarmtooLong = 60;               // Time in seconds for contents to start melting if temps are above threshold.
 
 
-            static double timeOnCurrentTask = 0;            // Time on current task in seconds.
-            static double interval = 60;                    // Simulated time interval in seconds.
-            static double tooWarmPeriod = 0;                // Time that contents are too warm in seconds.
-            static double tempContents = -2;                // Current temp of contents in degrees C.
+            static double timeOnCurrentTask = 0;            // 当前任务的时间（单位为秒）。
+            static double interval = 60;                    // 模拟时间间隔（单位为秒）。
+            static double tooWarmPeriod = 0;                // 货物过热的持续时间（单位为秒）。
+            static double tempContents = -2;                // 货物的当前温度（单位为摄氏度）。
             static double baseLat = 47.644702;              // Base position latitude.
             static double baseLon = -122.130137;            // Base position longitude.
             static double currentLat;                       // Current position latitude.
@@ -513,66 +668,74 @@ In the blank Program.cs file, insert the following code. Each additional section
 
             static FanEnum fan = FanEnum.on;                // Cooling fan state.
             static ContentsEnum contents = ContentsEnum.full;    // Truck contents state.
-            static StateEnum state = StateEnum.ready;       // Truck is full and ready to go!
-            static double optimalTemperature = -5;         // Setting - can be changed by the operator from IoT Central.
+            static StateEnum state = StateEnum.ready; // 卡车已装满，可以出发！
+            static double optimalTemperature = -5; // 设置 - 可由操作员在 IoT Central 中更改。
 
             const string noEvent = "none";
-            static string eventText = noEvent;              // Event text sent to IoT Central.
+            static string eventText = noEvent;              // 发送到 IoT Central 的事件文本。
 
             static double[,] customer = new double[,]
             {
-                // Lat/lon position of customers.
+                // 客户的经度/维度位置。
                 // Gasworks Park
                 {47.645892, -122.336954},
 
-                // Golden Gardens Park
+                // Golden Gardens 公园
                 {47.688741, -122.402965},
 
-                // Seward Park
+                // Seward 公园
                 {47.551093, -122.249266},
 
-                // Lake Sammamish Park
+                // Sammamish 湖公园
                 {47.555698, -122.065996},
 
-                // Marymoor Park
+                // Marymoor 公园
                 {47.663747, -122.120879},
 
-                // Meadowdale Beach Park
+                // Meadowdale 海滩公园
                 {47.857295, -122.316355},
 
-                // Lincoln Park
+                // 林肯公园
                 {47.530250, -122.393055},
 
-                // Gene Coulon Park
+                // Gene Coulon 公园
                 {47.503266, -122.200194},
 
-                // Luther Bank Park
+                // Luther Bank 公园
                 {47.591094, -122.226833},
 
-                // Pioneer Park
+                // Pioneer 公园
                 {47.544120, -122.221673 }
             };
 
-            static double[,] path;                          // Lat/lon steps for the route.
-            static double[] timeOnPath;                     // Time in seconds for each section of the route.
-            static int truckOnSection;                      // The current path section the truck is on.
-            static double truckSectionsCompletedTime;       // The time the truck has spent on previous completed sections.
+            static double[,] path;                          // 路线的纬度/经度步骤。
+            static double[] timeOnPath;                     // 路线每个部分的时间（单位为秒）。
+            static int truckOnSection;                      // 卡车所处的当前路线部分。
+            static double truckSectionsCompletedTime;       // 卡车在之前完成的部分花费的时间。
             static Random rand;
 
-            // IoT Central global variables.
+            // IoT Central 全局变量。
             static DeviceClient s_deviceClient;
             static CancellationTokenSource cts;
             static string GlobalDeviceEndpoint = "global.azure-devices-provisioning.net";
             static TwinCollection reportedProperties = new TwinCollection();
 
-            // User IDs.
+            // 用户 ID。
             static string ScopeID = "<your Scope ID>";
             static string DeviceID = "<your Device ID>";
             static string PrimaryKey = "<your device Primary Key>";
             static string AzureMapsKey = "<your Azure Maps Subscription Key>";
     ```
 
-1. Add the methods to get a route via Azure Maps.
+    虽然还要添加更多代码，但是现在可以替换刚才输入的占位符值。可以在实验室中添加的文本文件中找到这些占位符值。
+
+1. 打开包含之前保存的 RefrigeratorTruck1 和 Azure 地图帐户信息的文本文件。
+
+1. 在“代码编辑器”窗格中，将占位符值替换为文本文件中的对应值。
+
+    在代码中更新这些值之后，你可以重新生成应用。
+
+1. 在“代码编辑器”窗格中，若要添加用于通过 Azure 地图获取路线的方法，请输入以下代码：
 
    ```cs
             static double Degrees2Radians(double deg)
@@ -580,7 +743,7 @@ In the blank Program.cs file, insert the following code. Each additional section
                 return deg * Math.PI / 180;
             }
 
-            // Returns the distance in meters between two locations on Earth.
+            // 返回地球上两个位置之间的距离（单位为米）。
             static double DistanceInMeters(double lat1, double lon1, double lat2, double lon2)
             {
                 var dlon = Degrees2Radians(lon2 - lon1);
@@ -594,7 +757,7 @@ In the blank Program.cs file, insert the following code. Each additional section
 
             static bool Arrived()
             {
-                // If the truck is within 10 meters of the destination, call it good.
+                // 如果卡车在距离目的地 10 米的范围内，则称其为“良”。
                 if (DistanceInMeters(currentLat, currentLon, destinationLat, destinationLon) < 10)
                     return true;
                 return false;
@@ -604,34 +767,34 @@ In the blank Program.cs file, insert the following code. Each additional section
             {
                 while ((truckSectionsCompletedTime + timeOnPath[truckOnSection] < timeOnCurrentTask) && (truckOnSection < timeOnPath.Length - 1))
                 {
-                    // Truck has moved onto the next section.
+                    // 卡车已移动到下一部分。
                     truckSectionsCompletedTime += timeOnPath[truckOnSection];
                     ++truckOnSection;
                 }
 
-                // Ensure remainder is 0 to 1, as interval may take count over what is needed.
+                // 由于间隔的计数可能会超过所需值，请确保余数为 0 到 1。
                 var remainderFraction = Math.Min(1, (timeOnCurrentTask - truckSectionsCompletedTime) / timeOnPath[truckOnSection]);
 
                 // The path should be one entry longer than the timeOnPath array.
-                // Find how far along the section the truck has moved.
+                // 查找卡车已在该部分移动了多长距离。
                 currentLat = path[truckOnSection, 0] + remainderFraction * (path[truckOnSection + 1, 0] - path[truckOnSection, 0]);
                 currentLon = path[truckOnSection, 1] + remainderFraction * (path[truckOnSection + 1, 1] - path[truckOnSection, 1]);
             }
 
             static void GetRoute(StateEnum newState)
             {
-                // Set the state to ready, until the new route arrives.
+                // 将状态设置为“就绪”，直到制定新路线为止。
                 state = StateEnum.ready;
 
                 var req = new RouteRequestDirections
                 {
-                    Query = $"{currentLat},{currentLon}:{destinationLat},{destinationLon}"
+                    Query = FormattableString.Invariant($"{currentLat},{currentLon}:{destinationLat},{destinationLon}")
                 };
                 var directions = azureMapsServices.GetRouteDirections(req).Result;
 
                 if (directions.Error != null || directions.Result == null)
                 {
-                    // Handle any error.
+                    // 处理所有错误。
                     redMessage("Failed to find map route");
                 }
                 else
@@ -639,16 +802,16 @@ In the blank Program.cs file, insert the following code. Each additional section
                     int nPoints = directions.Result.Routes[0].Legs[0].Points.Length;
                     greenMessage($"Route found. Number of points = {nPoints}");
 
-                    // Clear the path. Add two points for the start point and destination.
+                    // 清除路线。为起点和目的地添加两个点。
                     path = new double[nPoints + 2, 2];
                     int c = 0;
 
-                    // Start with the current location.
+                    // 从当前位置开始。
                     path[c, 0] = currentLat;
                     path[c, 1] = currentLon;
                     ++c;
 
-                    // Retrieve the route and push the points onto the array.
+                    // 检索路线并将点推送到数组上。
                     for (var n = 0; n < nPoints; n++)
                     {
                         var x = directions.Result.Routes[0].Legs[0].Points[n].Latitude;
@@ -658,7 +821,7 @@ In the blank Program.cs file, insert the following code. Each additional section
                         ++c;
                     }
 
-                    // Finish with the destination.
+                    // 以目的地结束。
                     path[c, 0] = destinationLat;
                     path[c, 1] = destinationLon;
 
@@ -670,16 +833,16 @@ In the blank Program.cs file, insert the following code. Each additional section
                     double distanceApartInMeters;
                     double timeForOneSection;
 
-                    // Clear the time on path array. The path array is 1 less than the points array.
+                    // 清除路线数组上的时间。路线数组比点数组小 1。
                     timeOnPath = new double[nPoints + 1];
 
-                    // Calculate how much time is required for each section of the path.
+                    //计算路径的每个部分需要多少时间。
                     for (var t = 0; t < nPoints + 1; t++)
                     {
-                        // Calculate distance between the two path points, in meters.
+                        // 计算两个路线点之间的距离（单位为米）。
                         distanceApartInMeters = DistanceInMeters(path[t, 0], path[t, 1], path[t + 1, 0], path[t + 1, 1]);
 
-                        // Calculate the time for each section of the path.
+                        // 计算路径每个部分的时间。
                         timeForOneSection = distanceApartInMeters / pathSpeed;
                         timeOnPath[t] = timeForOneSection;
                     }
@@ -687,16 +850,16 @@ In the blank Program.cs file, insert the following code. Each additional section
                     truckSectionsCompletedTime = 0;
                     timeOnCurrentTask = 0;
 
-                    // Update the state now the route has arrived. One of: enroute or returning.
+                    // 立即更新状态，已制定路线。“途中”或“返回”的其中之一。
                     state = newState;
                 }
             }
     ```
 
-    > [!NOTE]
-    > The key call here is `var directions = azureMapsServices.GetRouteDirections(req).Result;`. The `directions` structure is complex. Consider setting a breakpoint in this method, and examining the contents of `directions`.
+    > **注释**： 
+    > 以上代码中的关键调用代码是 `var directions = azureMapsServices.GetRouteDirections(req).Result;`。`directions` 结构很复杂。应考虑在此方法中设置断点，并检查 `directions` 的内容。
 
-1. Add the direct method to deliver to a customer.
+1. 要添加交付给客户的直接方法，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
         static Task<MethodResponse> CmdGoToCustomer(MethodRequest methodRequest, object userContext)
@@ -707,7 +870,7 @@ In the blank Program.cs file, insert the following code. Each additional section
                 var payloadString = Encoding.UTF8.GetString(methodRequest.Data);
                 int customerNumber = Int32.Parse(payloadString);
 
-                // Check for a valid key and customer ID.
+                // 检查密钥和客户 ID 是否有效。
                 if (customerNumber >= 0 && customerNumber < customer.Length)
                 {
                     switch (state)
@@ -727,19 +890,19 @@ In the blank Program.cs file, insert the following code. Each additional section
                             }
                             else
                             {
-                                // Set event only when all is good.
+                                // 仅在一切正常时设置事件。
                                 eventText = "New customer: " + customerNumber.ToString();
 
                                 destinationLat = customer[customerNumber, 0];
                                 destinationLon = customer[customerNumber, 1];
 
-                                // Find route from current position to destination, storing route.
+                                // 查找从当前位置到目的地的路线，并存储路线。
                                 GetRoute(StateEnum.enroute);
                             }
                             break;
                     }
 
-                    // Acknowledge the direct method call with a 200 success message.
+                    // 通过 200 成功消息确认直接方法调用结果。
                     string result = "{\"result\":\"Executed direct method: " + methodRequest.Name + "\"}";
                     return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 200));
                 }
@@ -747,24 +910,24 @@ In the blank Program.cs file, insert the following code. Each additional section
                 {
                     eventText = $"Invalid customer: {customerNumber}";
 
-                    // Acknowledge the direct method call with a 400 error message.
+                    // 通过 400 错误消息确认直接方法调用结果。
                     string result = "{\"result\":\"Invalid customer\"}";
                     return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
                 }
             }
             catch
             {
-                // Acknowledge the direct method call with a 400 error message.
+                // 通过 400 错误消息确认直接方法调用结果。
                 string result = "{\"result\":\"Invalid call\"}";
                 return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
             }
         }
     ```
 
-    > [!NOTE]
-    > The device responds with a conflict, if the device isn't in the correct state. The command itself is acknowledged at the end of the method. The recall command that follows in the next step handles things similarly.
+    > **注释**： 
+    > 如果设备未处于正确状态，设备将以冲突做出响应。该命令本身在方法结束时确认。下一步中的召回命令的处理方法类似。
 
-1. Add the recall direct method.
+1. 要添加直接方法重新调用命令，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
         static void ReturnToBase()
@@ -772,7 +935,7 @@ In the blank Program.cs file, insert the following code. Each additional section
             destinationLat = baseLat;
             destinationLon = baseLon;
 
-            // Find route from current position to base, storing route.
+            // 查找从当前位置到基地的路线，并存储路线。
             GetRoute(StateEnum.returning);
         }
         static Task<MethodResponse> CmdRecall(MethodRequest methodRequest, object userContext)
@@ -798,23 +961,23 @@ In the blank Program.cs file, insert the following code. Each additional section
                     break;
             }
 
-            // Acknowledge the command.
+            // 确认命令。
             if (eventText == noEvent)
             {
-                // Acknowledge the direct method call with a 200 success message.
+                // 通过 200 成功消息确认直接方法调用结果。
                 string result = "{\"result\":\"Executed direct method: " + methodRequest.Name + "\"}";
                 return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 200));
             }
             else
             {
-                // Acknowledge the direct method call with a 400 error message.
+                // 通过 400 错误消息确认直接方法调用结果。
                 string result = "{\"result\":\"Invalid call\"}";
                 return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
             }
         }
     ```
 
-1. Add the method that updates the truck simulation at each time interval.
+1. 要添加在每个时间间隔内更新卡车模拟信息的方法，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
         static double DieRoll(double max)
@@ -826,7 +989,7 @@ In the blank Program.cs file, insert the following code. Each additional section
         {
             if (contents == ContentsEnum.empty)
             {
-                // Turn the cooling system off, if possible, when the contents are empty.
+                // 如果货物已空，关闭制冷系统（如果可能）。
                 if (fan == FanEnum.on)
                 {
                     fan = FanEnum.off;
@@ -835,31 +998,31 @@ In the blank Program.cs file, insert the following code. Each additional section
             }
             else
             {
-                // Contents are full or melting.
+                // 货物已满或融化。
                 if (fan != FanEnum.failed)
                 {
                     if (tempContents < optimalTemperature - 5)
                     {
-                        // Turn the cooling system off, as contents are getting too cold.
+                        // 由于货物温度过低，关闭制冷系统。
                         fan = FanEnum.off;
                     }
                     else
                     {
                         if (tempContents > optimalTemperature)
                         {
-                            // Temp getting higher, turn cooling system back on.
+                            // 由于温度升高，重新打开制冷系统。
                             fan = FanEnum.on;
                         }
                     }
 
-                    // Randomly fail the cooling system.
+                    // 随机关闭制冷系统。
                     if (DieRoll(100) < 1)
                     {
                         fan = FanEnum.failed;
                     }
                 }
 
-                // Set the contents temperature. Maintaining a cooler temperature if the cooling system is on.
+                // 设置货物温度。如果制冷系统已打开，保持较低温度。
                 if (fan == FanEnum.on)
                 {
                     tempContents += -3 + DieRoll(5);
@@ -869,21 +1032,21 @@ In the blank Program.cs file, insert the following code. Each additional section
                     tempContents += -2.9 + DieRoll(6);
                 }
 
-                // If the temperature is above a threshold, count the seconds this is occurring, and melt the contents if it goes on too long.
+                // 如果温度高于阈值，计算该情况持续的秒数，如果持续时间过长，货物会融化。
                 if (tempContents >= tooWarmThreshold)
                 {
-                    // Contents are warming.
+                    // 货物温度正在升高。
                     tooWarmPeriod += interval;
 
                     if (tooWarmPeriod >= tooWarmtooLong)
                     {
-                        // Contents are melting.
+                        // 货物正在融化。
                         contents = ContentsEnum.melting;
                     }
                 }
                 else
                 {
-                    // Contents are cooling.
+                    // 货物温度正在降低。
                     tooWarmPeriod = Math.Max(0, tooWarmPeriod - interval);
                 }
             }
@@ -895,13 +1058,13 @@ In the blank Program.cs file, insert the following code. Each additional section
                 case StateEnum.loading:
                     if (timeOnCurrentTask >= loadingTime)
                     {
-                        // Finished loading.
+                        // 完成装货。
                         state = StateEnum.ready;
                         contents = ContentsEnum.full;
                         timeOnCurrentTask = 0;
 
-                        // Turn on the cooling fan.
-                        // If the fan is in a failed state, assume it has been fixed, as it is at the base.
+                        // 打开冷却风扇。
+                        // 如果风扇处于故障状态，由于处于基地，假定已修理。
                         fan = FanEnum.on;
                         tempContents = -2;
                     }
@@ -914,7 +1077,7 @@ In the blank Program.cs file, insert the following code. Each additional section
                 case StateEnum.delivering:
                     if (timeOnCurrentTask >= deliverTime)
                     {
-                        // Finished delivering.
+                        // 完成交付。
                         contents = ContentsEnum.empty;
                         ReturnToBase();
                     }
@@ -922,10 +1085,10 @@ In the blank Program.cs file, insert the following code. Each additional section
 
                 case StateEnum.returning:
 
-                    // Update the truck position.
+                    // 更新卡车位置。
                     UpdatePosition();
 
-                    // Check to see if the truck has arrived back at base.
+                    // 检查卡车是否已回到基地。
                     if (Arrived())
                     {
                         switch (contents)
@@ -948,10 +1111,10 @@ In the blank Program.cs file, insert the following code. Each additional section
 
                 case StateEnum.enroute:
 
-                    // Move the truck.
+                    // 移动卡车。
                     UpdatePosition();
 
-                    // Check to see if the truck has arrived at the customer.
+                    // 检查卡车是否已到达客户位置。
                     if (Arrived())
                     {
                         state = StateEnum.delivering;
@@ -962,7 +1125,7 @@ In the blank Program.cs file, insert the following code. Each additional section
                 case StateEnum.dumping:
                     if (timeOnCurrentTask >= dumpingTime)
                     {
-                        // Finished dumping.
+                        // 完成废弃。
                         state = StateEnum.loading;
                         contents = ContentsEnum.empty;
                         timeOnCurrentTask = 0;
@@ -972,10 +1135,10 @@ In the blank Program.cs file, insert the following code. Each additional section
         }
     ```
 
-    > [!NOTE]
-    > This function is called every time interval. The actual time interval is set at 5 seconds, though the _simulated time_ (the number of simulated seconds you specify that has passed each time this function is called) is set by the global `static double interval = 60`. Setting this value at 60 means the simulation runs at a rate of 60 divided by 5, or 12 times real time. To lower the simulated time, reduce `interval` to, say, 30 (for a simulation that runs at six times real-time). Setting `interval` at 5 would run the simulation in real-time. Though realistic, this speed would be a bit slow, given the real driving times to the customer destinations.
+    > **注释**： 
+    > 每个时间间隔内都会调用此函数。实际时间间隔设置为 5 秒，而已模拟时间__（你指定的每次调用此函数时已经过的模拟秒数）通过全局变量 `static double interval = 60` 设置。将该值设置为 60 意味着模拟以 60 除以 5 的实时速率运行，即 12 次。为了减少已模拟时间，将 `interval` 减小到 30（实时运行六次的模拟）。将 `interval` 设置为 5 可以实时运行模拟。虽然很真实，但考虑到前往客户目的地的实际行驶次数，该速度会稍慢一些。
 
-1. Add the methods to send truck telemetry. Send events too, if any have occurred.
+1. 要添加将发送卡车遥测数据（如果发生任何事件，还会发送事件）的方法，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
         static void colorMessage(string text, ConsoleColor clr)
@@ -1000,7 +1163,7 @@ In the blank Program.cs file, insert the following code. Each additional section
             {
                 UpdateTruck();
 
-                // Create the telemetry JSON message.
+                // 创建遥测 JSON 消息。
                 var telemetryDataPoint = new
                 {
                     ContentsTemperature = Math.Round(tempContents, 2),
@@ -1013,15 +1176,15 @@ In the blank Program.cs file, insert the following code. Each additional section
                 var telemetryMessageString = JsonSerializer.Serialize(telemetryDataPoint);
                 var telemetryMessage = new Message(Encoding.ASCII.GetBytes(telemetryMessageString));
 
-                // Clear the events, as the message has been sent.
+                // 清除事件，因为消息已发送。
                 eventText = noEvent;
 
                 Console.WriteLine($"\nTelemetry data: {telemetryMessageString}");
 
-                // Bail if requested.
+                // 如果需要，向外排水。
                 token.ThrowIfCancellationRequested();
 
-                // Send the telemetry message.
+                // 发送遥测消息。
                 await s_deviceClient.SendEventAsync(telemetryMessage);
                 greenMessage($"Telemetry sent {DateTime.Now.ToShortTimeString()}");
 
@@ -1030,10 +1193,10 @@ In the blank Program.cs file, insert the following code. Each additional section
         }
     ```
 
-    > [!NOTE]
-    > The `SendTruckTelemetryAsync` is an important function, handling the sending of telemetry, states, and events to IoT Central. Note the use of JSON strings to send the data.
+    > **注释**： 
+    > `SendTruckTelemetryAsync` 是一个重要函数，用于处理向 IoT Central 发送遥测数据、状态和事件的过程。请注意使用 JSON 字符串发送数据。
 
-1. Add the code to handle settings and properties. You only have one setting and one property in our app, though if there are more, they are easily added.
+1. 要添加处理设置和属性的代码，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
         static async Task SendDevicePropertiesAsync()
@@ -1066,10 +1229,12 @@ In the blank Program.cs file, insert the following code. Each additional section
         }
     ```
 
-    > [!NOTE]
-    > This section of code is generic to most C# apps that communicate with IoT Central. To add additional properties or settings, add to `reportedProperties`, or create a new setting string, and check on `desiredProperties`, respectively. No other code changes are usually needed.
+    你的应用中仅添加了一种设置和一种属性。如果需要更多设置和属性，可以轻松添加。
 
-1. Add the `Main` function.
+    > **注释**： 
+    > 这部分代码对与 IoT Central 通信的大多数 C# 应用均通用。要添加其他属性或设置，请添加到 `reportedProperties`，或在 `desiredProperties` 中单独创建一个新的设置字符串，然后检查。通常不需要更改其他代码。
+
+1. 要添加 `Main` 函数，请在“代码编辑器”窗格中输入以下代码：
 
    ```cs
             static void Main(string[] args)
@@ -1106,7 +1271,7 @@ In the blank Program.cs file, insert the following code. Each additional section
 
                     cts = new CancellationTokenSource();
 
-                    // Create a handler for the direct method calls.
+                    // 为直接方法的调用创建一个处理程序。
                     s_deviceClient.SetMethodHandlerAsync("GoToCustomer", CmdGoToCustomer, null).Wait();
                     s_deviceClient.SetMethodHandlerAsync("Recall", CmdRecall, null).Wait();
 
@@ -1147,178 +1312,258 @@ In the blank Program.cs file, insert the following code. Each additional section
     }
     ```
 
-    > [!NOTE]
-    > Direct methods are set in the client using statements such as `s_deviceClient.SetMethodHandlerAsync("cmdGoTo", CmdGoToCustomer, null).Wait();`.
+    > **注释**： 
+    > 使用 `s_deviceClient.SetMethodHandlerAsync("cmdGoTo", CmdGoToCustomer, null).Wait();` 等语句在客户端中设置直接方法。
 
-Fantastic! You are now ready to test your code.
+1. 在 **“文件”** 菜单中，单击 **“保存”**。
 
-## Exercise 6: Test Your IoT Central Device
+    模拟设备应用完成后，可以开始考虑测试代码。
 
-Working through this task is an exciting time in IoT Central development! Finally, you get to check whether all the moving parts you've created work together.
+### 练习 6：测试你的 IoT Central 设备
 
-## Test the device app and IoT Central app together
+在本练习中，你最后将检查你创建的所有可变部分是否都能按预期运行。
 
-To fully test the refrigerated truck device, it helps to break down the testing into a number of discreet checks:
+为了全面测试冷藏卡车设备，它可以将测试分解为多个谨慎检查项目：
 
-1. The device app connects to Azure IoT Central.
+* 设备应用连接到 Azure IoT Central。
 
-1. The telemetry functions send data on the specified interval.
+* 遥测功能按指定的时间间隔发送数据。
 
-1. The data is picked up correctly by IoT Central.
+* IoT Central 正确提取数据。
 
-1. The command to send the truck to a specified customer works as expected.
+* 将卡车分配给指定客户的命令按预期运行。
 
-1. The command to recall the truck works as expected.
+* 召回卡车的命令按预期运行。
 
-1. Check customer and conflict events are transmitted correctly.
+* 检查是否正确传输客户和冲突事件。
 
-1. Check the truck properties, and change the optimal temperature.
+* 检查卡车属性，并更改最佳温度。
 
-In addition to this list, there are edge-cases you could also investigate. One such case is what happens when the truck's contents start to melt? This state is left up to chance in our simulation, with the use of random numbers in our code in the previous task.
+除了此列表列出的项目之外，你还可以调查一些极端情况。一种情况是，卡车的货物开始融化会产生什么结果？我们在上一个任务的代码中使用了随机数，因此这种状态在我们的模拟中是偶然情况。
 
-To begin the testing, with your [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true) app open in a browser, run the device app.
+#### 任务 1：准备 IoT Central 和你的模拟设备 
 
-1. In Visual Studio, select **Debug/Start without Debugging**.
+1. 确保已在浏览器中打开 Azure IoT Central 应用。
 
-1. In the terminal, enter `dotnet run`.
+    在开始测试 IoT Central 与你的设备之间的连接之前，请确保已在浏览器中打开 Azure IoT Central 应用。使应用保持打开到 RefrigeratedTruck - 1 仪表板的“命令”选项卡。如果需要，可以重新在浏览器中打开 [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true)。
 
-A console screen should open, with the text: **Starting Truck number 1**.
+1. 在 Visual Studio Code 中的“终端”命令提示符下，输入以下命令：
 
-### 1. Confirm the device app connects to Azure IoT Central
+    ```cmd/sh
+    dotnet run
+    ```
 
-1. If one of the next lines on the console is **Device successfully connected to Azure IoT Central** you've made the connection. If you do not get this message, it usually means either the IoT Central app isn't running, or the connection key strings aren't correct.
+1. 检查发送到“终端”窗格的输出。
 
-1. The "connected" line should be followed by some text verifying the settings and properties were sent successfully.
+    你将看到显示到终端控制台的输出，其中包含以下文本： **“1 号卡车出发”**。
 
-If all goes well, go straight into the second test.
+1. 验证文本： **“1 号卡车出发”** 已显示。
 
-### 2. Confirm the telemetry functions send data on the specified interval
+    > **注释**：如果一切按预期进行，你可以快速检查几个已定义的测试用例。
 
-1. A console message should appear every five seconds, with the contents temperature.
+    你将继续监控“终端”窗格中即将执行的任务。
 
-1. Watch the telemetry for a short while, and mentally prepare for the main test of this lab!
+#### 任务 2：确认设备应用已连接到 Azure IoT Central
 
-### 3. Confirm the data is picked up correctly by IoT Central
+1. 验证“终端”窗格中出现 **“设备已成功连接到 Azure IoT Central”**。
 
-1. To verify the data is being received at IoT Central, make sure your IoT Central pp is open, and the device selected. If not, select the **Devices** entry in the left-hand menu. Double-click the real device (**RefrigeratedTruck - 1**), in the list of devices.
+    如果控制台后续的一行是 **“设备已成功连接到 Azure IoT Central”**，表明你已建立连接。如果未收到此消息，通常意味着 IoT Central 应用未运行，或者连接密钥字符串不正确。
 
-1. Locate the **Contents temperature** tile, and verify approximately that the temperatures being sent by the device app, in the console window, match the data being shown in the telemetry view of the IoT Central app.
+1. 验证“已连接”消息后面是否有验证设置和属性是否已成功发送的文本。
 
-1. Check the state tiles: **Truck state**, **Cooling system state**, and **Contents state** in the IoT Central app, to verify the truck and its contents are in the expected state.
+    如果一切正常，请继续进行第二项测试（任务 3）。
 
-1. Check the **Location** map view for the device. A blue circle near Seattle, USA shows our truck ready to go. You may have to zoom out a bit.
+#### 任务 3：确认遥测功能按指定间隔发送数据
 
-If all is well, this is great progress. The truck is at its base, in the correct state, and waiting for a command.
+1. 验证正在发送遥测数据。 
 
-# Continue the tests of your IoT Central device
+    控制台消息应每五秒显示一次货物温度。
 
-In this task, we complete the app testing.
+1. 短暂观察遥测数据，并为该实验室的主测试做好心理准备！
 
-### 4. Confirm the command to send the truck to a specified customer works as expected
+#### 任务 4：确认 IoT Central 正确提取数据
 
-Now for the best fun of all.
+1. 切换到包含 Azure IoT Central 应用的浏览器窗口。
 
-1. Click the **Commands** title for the device. This control should be under the truck name, and right of the **Truck view** control.
+1. 在 **“RefrigeratedTruck - 1”** 仪表板上，单击 **“卡车视图”**。
 
-1. Enter a customer ID, say "1" ("0" through "9" are valid customer IDs), and click **Run**.
+    如果未在 IoT Central 中选择 RefrigeratedTruck 设备，请执行以下操作：
 
-1. In the console for the device app, you should both see  **New customer** event, and a **Route found** message.
+    * 在左侧导航菜单上，单击 **“设备”**。
+    * 在设备列表中，双击 **“RefrigeratedTruck - 1”**。
+    * 在仪表板上，确保已选中 **“卡车视图”**。
 
-   > [!NOTE]
-   > If you see a message including the text **Access denied due to invalid subscription key**, then check your subscription key to Azure Maps.
+1. 验证数据是否在 **“RefrigeratedTruck - 1”** 仪表板上。
 
-1. In the dashboard **Location** tile, is your truck on its way? You might have to wait a short time for the apps to sync up.
+    例如，“卡车 ID”磁贴应显示“卡车编号 1”，“卡车状态”磁贴应显示“就绪”和时间值。
 
-1. Verify the event text in the dashboard tile.
+1. 在仪表板上，找到 **“货物温度”** 磁贴。
 
-Great progress! Take a moment to just watch the map update, and your truck deliver its contents.
+    > **注释**：经过一段时间的通常可接受的温度（接近零摄氏度）后，数字将开始向上循环。
 
-### 5. Confirm the command to recall the truck works as expected
+1. 验证设备应用发送的温度是否与 IoT Central 应用的遥测视图中显示的数据匹配。
 
-1. When the truck returns to base, and is reloaded with contents, it's state will be **ready**. Try issuing another delivery command. Choose another customer ID.
+    将 Visual Studio Code “终端”窗格中的最新值与“货物温度”图表上显示的最新值进行比较。 
 
-1. Issue a recall command before the truck reaches its customer, to check the truck responds to this command.
+1. 要验证卡车及其货物是否处于预期状态，请检查状态磁贴：**卡车状态**、**冷却系统状态** 和 **内容状态**。
 
-### 6. Check customer and conflict events are transmitted correctly
+1. 检查设备的 **位置** 地图视图。 
 
-To test a conflict event, send a command that you know doesn't make sense.
+    美国西雅图附近的一个蓝色圆圈显示我们的卡车已准备出发。你可能需要缩小一点。
 
-1. With your truck at the base, issue a Recall command. The truck should respond with the "already at base" event.
+    卡车应以位于其底部，状态正确，并等待命令。
 
-### 7. Check the truck properties, and change the optimal temperature
+    在下一个任务中，你将完成应用测试。
 
-1. The simplest test is to check the **Truck ID** tile. This tile should have picked up the **Truck number 1** message when the apps were started.
+#### 任务 5。确认将卡车发送给指定客户的命令按预期工作
 
-1. A more complex test is to check the writable property, **OptimalTemperature**. To change this value, click on **Jobs** in the left-hand menu.
+1. 在 **“RefrigeratedTruck - 1”** 仪表板上，在仪表板标题下方，单击 **“命令”**。 
 
-1. Click **+ New**, top-right.
+1. 在 **“客户 ID”**下，输入 **“1”**
 
-1. Give the job a friendly name, "Set optimal temperature to -10".
+    从“0”到“9”的任何值都是有效的客户 ID
 
-1. For **Device group**, select **RefrigeratedTruck - All devices**. For **Job type**, select **Writable properties**. For **Writable properties**, select **Optimal Temperature**.
+1. 要发出命令，单击 **“运行”**。
 
-1. Finally, set the value as **-10**.
+1. 切换回 **卡车视图**。
 
-1. Running this job should set the optimal temperature for all trucks in the device group, just one in our case. Click **Run**. Wait for the **Status** of the job to change from **Pending** to **Completed**. This change should only take a few seconds.
+    在设备应用的控制台中，你应该会看到一条 **新客户** 事件和一条 **已找到路由** 消息。
 
-1. Navigate back, via **Devices** to your dashboard. Verify the **Optimal temperature** has been set to -10, in the tile on the dashboard.
+   > **注释**： 
+   > 如果你看到一条包含 **由于订阅密钥无效而拒绝访问** 文本的消息，请检查你对 Azure 地图的订阅密钥。
 
-## Next steps
+1. 在仪表板的 **“位置”** 磁贴上，验证卡车正在行驶中。
 
-With the testing for one truck complete, it is time to consider expanding our IoT Central system.
+    可能需要等待片刻才能使两个应用同步。
 
-## Exercise 7: Create multiple devices
+1. 验证事件文本正在事件磁贴中更新。
 
-In this task, we consider what steps would be necessary to add multiple trucks to our system.
+1. 花点时间观看地图更新和卡车交付其内容。
 
-## Add multiple devices to the IoT Central app
+#### 任务 6。确认召回卡车的命令正常执行
 
-1. To add multiple devices, start in the [Azure IoT Central](https://apps.azureiotcentral.com/?azure-portal=true) app, clicking **Devices** in the left-hand menu.
+1. 验证卡车返回基地并重新装载完内容时，卡车状态已更新为 **“准备就绪”**。 
 
-1. Click **RefrigeratedTruck** in the **Devices** menu, to ensure the device we create uses this device template. The device template you select will be shown in bold text.
+    尝试发出另一个发货命令。选择一个不同的客户 ID。
 
-1. Click **+ New**. Verify in the dialog that the device name includes the **RefrigeratedTruck** text. If it doesn't, you've not selected the right device template.
+1. 在卡车到达客户之前发出召回命令。
 
-1. Change the **Device ID** to a friendlier name, say "RefrigeratedTruck2".
+1. 验证卡车对此命令作出响应。
 
-1. Change the **Device name** to a friendlier name, say "RefrigeratedTruck - 2".
+#### 任务 7。检查是否正确传输客户事件和冲突事件
 
-1. Leave the **Simulated** setting at **Off**.
+要测试冲突事件，可以发送你认为没有意义的命令。
 
-1. Click **Create**.
+1. 在卡车位于基地时，发出召回命令。 
 
-Repeat this process to create as many devices as you need.
+1. 验证卡车是否响应“已在基地”事件。
 
-## Provision the new devices
+#### 任务 8。检查卡车属性，并更改最佳温度
 
-1. Double-click on **RefrigeratedTruck - 2**, and then click **Connect** (top right of your IoT Central screen).
+1. 验证 **“卡车 ID”** 磁贴是否显示 **“卡车编号 1”**。
 
-1. In the **Device Connection** screen, copy the **Device ID** and the **Primary Key** to your text file, noting that they are for the second truck. There is no need to copy the **Scope ID**, as this value is identical to the value for the first truck (it identifies your app, not an individual device).
+    该属性是最简单的测试对象之一。 
 
-1. Click **Close**.
+    可写属性的测试更加复杂，**OptimalTemperature** 属性是可写属性，因此是下一个测试对象。
 
-1. Back on the **Devices** page, repeat the process for any other devices you created, copying their **Device ID** and **Primary Key** to your text file.
+1. 在左侧导航菜单上，单击 **“作业”**。
 
-1. When you have completed connecting all new trucks, notice that the **Provisioning Status** is still **Registered**. Not until you make the connection will this change.
+1. 在 **“作业”** 下，单击 **“新建”**。
 
-## Create new apps for each new device
+1. 在 **“作业”** 下，请输入 **“将最佳温度设置为 -10”**，代替 **“输入新作业名称”**
 
-Each truck is simulated by one running copy of the device app. So, you need multiple versions of this app running simultaneously.
+1. 在 **“设备组”** 下拉列表中，单击 **“RefrigeratedTruck - 所有设备”**。
 
-1. Create multiple projects by repeating the steps in the **Create a programming project for a real device** for each new device. Copy and paste the entire app from your current working project, replacing the **Device ID** and **Primary Key** with new values. No need to change the **Scope ID** or the **Azure Maps subscription Key**, as these are identical for all devices.
+1. 在 **“作业类型”** 下拉列表中，单击 **“属性”**。
 
-1. Remember to add the necessary libraries to each new project.
+1. 在 **“名称”** 下拉列表中，单击 **“最佳温度”**。
 
-1. Change the `truckNum` in each project to a different value.
+1. 在 **“值”** 文本框中，输入 **“-10”**。
 
-1. Set each project app running.
+    在运行此作业时，应为设备组中的所有卡车设定最佳温度，在本例中仅有一辆卡车。
 
-## Verify the telemetry from all the devices
+1. 在窗口顶部，单击 **“运行”**。
 
-1. Verify that the one dashboard you created works for all trucks.
+1. 请注意，短时间后作业 **“状态”** 会从 **“挂起”** 变为 **“已完成”**。
 
-1. Using the dashboard for each truck, try ordering the trucks to different customers. Using the **Location** map on each dashboard, verify the trucks are heading in the right direction!
+    此变化应该只需要几秒钟。
 
-Congratulations on completing the lab!
+1. 通过 **“设备”** 回到仪表板。
 
-We suggest that you clean up your resources.
+1. 在仪表板的 **“最佳温度”** 磁贴中，验证 **“最佳温度”** 已设为 -10。
+
+完成对一辆卡车的测试后，就该考虑扩展我们的 IoT Central 系统了。
+
+### 练习 7：创建多台设备
+
+在本练习中，你将完成向车队添加多辆卡车所需的步骤。
+
+#### 任务 1：将多个设备添加到 IoT Central 应用
+
+1. 确保你的 IoT Central 应用已打开。
+
+    如有必要，请打开[“Azure IoT Central”](https://apps.azureiotcentral.com/?azure-portal=true)应用
+
+1. 在左侧导航菜单上，单击 **“设备”**。
+
+1. 在 **“设备”** 下，单击 **“RefrigeratedTruck”**。
+
+    这样可以确保你创建的设备将使用此设备模板。你选择的设备模板将以粗体显示。
+
+1. 在 **“RefrigeratedTruck”** 下，单击 **“新建”**。
+
+    验证默认设备名称是否包含 **RefrigeratedTruck** 文本。否则，意味着你尚未选择正确的设备模板。
+
+1. 在 **“新建设备”** 对话框的 **“设备 ID”**下，输入 **“RefrigeratedTruck2”**
+
+1. 在 **“设备名称”** 下，输入 **“RefrigeratedTruck - 2”**
+
+1. 在 **“新建设备”** 对话框底部，单击 **“创建”**。 
+
+    如果需要，可以对其他卡车重复上述过程。
+
+#### 任务 2：预配新设备
+
+1. 在 **“设备名称”** 下，双击 **“RefrigeratedTruck - 2”**。
+
+1. 在页面右上角，单击 **“连接”**。
+
+1. 在 **“设备连接”**对话框中，将 **“设备 ID”**和 **“主密钥”** 复制到文本文件，请注意它们属于第二辆卡车。
+
+    无需复制 **“ID 范围”**，因为该值与第一辆卡车相同（它用来标识应用，而非单个设备）。
+
+1. 在 **“设备连接”** 对话框底部，单击 **“关闭”**。
+
+1. 回到 **“设备”**页面，对你创建的任何其他设备重复该过程，然后将这些设备的 **“设备 ID”**和 **“主键”** 复制到文本文件。
+
+1. 完成所有对新卡车的连接后，注意 **“预配状态”** 仍是 **“已注册”**。
+
+    除非你建立连接，否则这不会发生变化。
+
+#### 任务 3：为每个新设备创建新应用
+
+每辆卡车都将通过一个独立运行的模拟设备应用实例进行模拟。因此，你需要同时运行多个版本的应用。
+
+1. 要新建模拟设备应用，请为你在 IoT Central 应用中创建的每辆新卡车重复 **为真实设备创建编程项目** 的任务。 
+
+1. 确认已将 **“设备 ID”** 和 **“主键”** 替换为新卡车的值。
+
+    **所有设备的范围 ID** 和  **Azure Maps 帐户主键** 都应是相同的。
+
+1. 记得为每个新项目加载必要的库。
+
+1. 将每个项目中的 `truckNum` 更改为不同的值。
+
+1. 对于每个项目，使用终端命令 `dotnet run` 启动应用。
+
+#### 任务 4：验证所有设备的遥测
+
+1. 验证你创建的仪表板是否适用于所有卡车。
+
+1. 使用每辆卡车的仪表板，尝试将卡车订购给不同的客户。 
+
+1. 使用每个仪表板上的 **“位置”** 地图，验证这些卡车正朝着正确的方向行驶。
+
+    恭喜你完成本实验室的内容！
+
+1. 清理你的资源。

@@ -1,92 +1,153 @@
----
+﻿---
 lab:
-    title: 'Lab 16: Automate IoT Device Management with Azure IoT Hub'
-    module: 'Module 8: Device Management'
+    title: '实验室 16：使用 Azure IoT 中心自动进行 IoT 设备管理'
+    module: '模块 8：设备管理'
 ---
 
-# Automate IoT Devices Management with Azure IoT Hub
+# 使用 Azure IoT 中心自动进行 IoT 设备管理
 
-Azure IoT Hub is a cloud service designed to be your cloud gateway for IoT devices. It allows securely connect millions of devices and establish a bidirectional communication to not only collect data from sensors, but also allow for remote monitoring and management of the devices.
+IoT 设备通常使用优化的操作系统，甚至直接在芯片上运行代码（无需实际操作系统）。为了更新在此类设备上运行的软件，最常用的方法是刷写全套新版软件包，包括 OS 以及在 OS 上运行的应用（称为“固件”）。
 
-## Lab Scenario
+由于每个设备都有特定用途，因此其固件也非常具体，并针对设备用途以及可用受限资源进行了优化。
 
-Suppose you manage a company that offers a solution to maintain and monitor cheese caves' temperature and humidity at optimal levels. You have been working with gourmet cheese making companies for a long time and established long term trust with these customers who value the quality of your product.
+固件更新过程也可特定于硬件以及硬件制造商的制板方式。这意味着部分固件更新过程不通用，你需要联系设备制造商以获取固件更新过程的详细信息（除非你正自行开发硬件，这意味着你很可能知道固件更新过程的详细信息） 。
 
-Your solution consists in sensors and a climate system installed in the cave that report in real time on the temperature and humidity and an online portal customers can use to monitor and remotely operate their devices to adapt the temperature and humidity to the type of cheese they stored in their cave or to fine tune the environment for perfectly aging their cheese.
+尽管过去通常将固件更新手动应用于单个设备，但考虑到典型 IoT 解决方案中所使用的设备数量，这种做法不再适用。现在，固件更新通常是以无线 (OTA) 方式进行的，通过云远程管理新固件部署。
 
-Your company is always enhancing the software running on the devices to better adapt to your customers different cheeses and diverse types of rooms they use to store their cheese. In addition to the features updates, you also want to make sure the devices deployed at customers locations have the latest security patches to ensure privacy and prevent hackers to take control of the system. In order to do this, you need to keep the devices up to date by remotely updating their firmware.
+IoT 设备的所有无线固件更新都有一组共同点：
 
-## In This Lab
+1. 固件版本是唯一标识的
+1. 固件采用二进制文件格式，设备需要从在线来源获取固件
+1. 固件是存储在本地的某种物理存储形式（ROM 存储器、硬盘驱动器...）
+1. 设备制造商提供了更新固件所需设备操作的描述。
 
-In this lab, you will you'll learn how automate device management with IoT Hub to configure and manage IoT devices remotely at scale.
+Azure IoT 中心提供高级支持，用于在单个设备和设备集合上实现设备管理操作。[“自动设备管理”](https://docs.microsoft.com/azure/iot-hub/iot-hub-auto-device-config)功能使你可以方便地配置和触发一组操作，然后监视其进度。
 
-This lab includes:
+## 实验室场景
 
-* Create an Azure IoT Hub and a Device ID
-* Setup an Azure IoT environment: and Azure IoT Hub instance and a device Id
-* Write code for simulating the device that will implement the firmware update
-* Test the firmware update process on a single device using Azure IoT Hub automatic device management
+你在 Contoso 的奶酪储藏室中实现的自动化空气处理系统帮助该公司在原本的高标准基础上进一步提高了质量标准。公司的奶酪获得了更多奖项。
 
+你的基本解决方案包括与传感器和气候控制系统集成的 IoT 设备，以对多室储藏室系统中的温度和湿度进行实时控制。你还开发了一个简单的后端应用，用来演示使用直接方法和设备孪生属性管理设备的能力。
 
-## Exercise 1: Create an Azure IoT Hub and a Device ID
+Contoso 对你的初始解决方案中的简单后端应用进行了扩展，以包含一个操作员可用来监视和远程管理储藏室环境的在线门户。借助新门户，操作员甚至可以根据奶酪类型或奶酪老化过程中的特定阶段自定义储藏室内的温度和湿度。储藏室内的每个房间或区域都可以单独控制。
 
-This lab assumes the following resources are available:
+IT 部门将维护他们为操作员开发的后端门户，而你的经理已同意管理该解决方案的设备端。 
 
-| Resource Type | Resource Name |
+对你来说，这意味着两件事： 
+
+1. Contoso 运营团队一直在寻找改进方法。通常，这些改进意味着为设备软件开发更多新功能的请求。 
+
+1. 部署到储藏室位置的 IoT 设备需要最新的安全补丁，以确保隐私并防止黑客控制系统。为了维护系统安全性，你需要通过远程更新固件来使设备保持最新状态。
+
+你计划实现 IoT 中心功能，以便能够实现自动设备管理和大规模设备管理。
+
+将创建以下资源：
+
+![实验室 16 基础结构](media/LAB_AK_16-architecture.png)
+
+## 在该实验室中
+
+在本实验室中，你将完成以下活动：
+
+* 验证实验室先决条件
+* 为实现固件更新的模拟设备写入代码
+* 使用 Azure IoT 中心自动设备管理在单个设备上测试固件更新过程
+
+## 实验室说明
+
+### 练习 1：验证实验室先决条件
+
+本实验室假定以下 Azure 资源可用：
+
+| 资源类型 | 资源名称 |
 | :-- | :-- |
-| Resource Group | AZ-220-RG |
-| IoT Hub | AZ-220-HUB-{YOUR-ID} |
-| IoT Device | SimulatedSolutionThermostat |
+| 资源组 | AZ-220-RG |
+| IoT 中心 | AZ-220-HUB-_{YOUR-ID}_ |
+| IoT 设备 | SimulatedSolutionThermostat |
 
-To create these resources, please update and execute the **lab-setup.azcli** script before starting the lab.
+如果这些资源不可用，请按以下说明运行 **“lab16-setup.azcli”** 脚本，然后再前往练习 2。脚本文件包含在本地克隆作为开发环境配置（实验室 3）的 GitHub 存储库中。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+>**注：**你将需要 **“SimulatedSolutionThermostat”** 设备的连接字符串。如果你已经在 Azure IoT 中心注册了此设备，则可以通过在 Azure Cloud Shell 中运行以下命令来获取连接字符串
+>
+> ```bash
+> az iot hub device-identity show-connection-string --hub-name AZ-220-HUB-_{YOUR-ID}_ --device-id SimulatedThermostat -o tsv
+> ```
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+写入 **lab16-setup.azcli** 脚本，并在 **Bash** shell 环境中运行，执行此操作最简便的方法是在 Azure Cloud Shell 中。
 
-1. Open the Azure Cloud Shell by clicking the **Terminal** icon within the top header bar of the Azure portal, and select the **Bash** shell option.
+1. 使用浏览器打开 [Azure Shell](https://shell.azure.com/)，并使用本课程所使用的 Azure 订阅登录。
 
-1. Before the Azure CLI can be used with commands for working with Azure IoT Hub, the **Azure IoT Extensions** need to be installed. To install the extension, run the following command:
+    如果系统提示设置 Cloud Shell 的存储，请接受默认设置。
 
-    ```sh
-    az extension add --name azure-cli-iot-ext
-    ```
+1. 验证 Azure Cloud Shell 是否正在使用 **Bash**。
 
-1. To upload the setup script, in the Azure Cloud Shell toolbar, click **Upload/Download files** (fourth button from the right).
+    Azure Cloud Shell 页面左上角的下拉菜单用于选择环境。验证所选的下拉值是否为 **Bash**。
 
-1. In the dropdown, select **Upload** and in the file selection dialog, navigate to the **lab-setup.azcli** file for this lab. Select the file and click **Open** to upload it.
+1. 在 Azure Shell 工具栏上，单击 **上传/下载文件** （从右数第四个按钮）。
 
-    A notification will appear when the file upload has completed.
+1. 在下拉菜单中，单击 **“上传”**。
 
-1. You can verify that the file has uploaded by listing the content of the current directory by entering the `ls` command.
+1. 在“文件选择”对话框中，导航到配置开发环境时下载的 GitHub 实验室文件的文件夹位置。
 
-1. To create a directory for this lab, move **lab-setup.azcli** into that directory, and make that the current working directory, enter the following commands:
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
+
+    * Allfiles
+      * 实验室
+          * 16-使用 Azure IoT 中心实现自动化 IoT 设备管理
+            * 设置
+
+    lab16-setup.azcli 脚本文件位于实验室 16 的 Setup 文件夹中。
+
+1. 选择 **“lab16-setup.azcli”** 文件，然后单击 **“打开”**。
+
+    文件上传完成后，将显示一条通知。
+
+1. 若要验证在 Azure Cloud Shell 中已上传了正确文件，请输入以下命令：
 
     ```bash
-    mkdir lab14
-    mv lab-setup.azcli lab14
-    cd lab14
+    ls
     ```
 
-1. To ensure the **lab-setup.azcli** has the execute permission, enter the following commands:
+    使用 `ls` 命令列出当前目录的内容。你应该会看到列出的 lab16-setup.azcli 文件。
+
+1. 若要为此实验室创建一个包含安装脚本的目录，然后移至该目录，请输入以下 Bash 命令：
 
     ```bash
-    chmod +x lab-setup.azcli
+    mkdir lab16
+    mv lab16-setup.azcli lab16
+    cd lab16
     ```
 
-1. To edit the **lab-setup.azcli** file, click **{ }** (Open Editor) in the toolbar (second button from the right). In the **Files** list, select **lab14** to expand it and then select **lab-setup.azcli**.
+1. 为保证 **lab16-setup.azcli** 拥有执行权限，请输入以下命令：
 
-    The editor will now show the contents of the **lab-setup.azcli** file.
+    ```bash
+    chmod +x lab16-setup.azcli
+    ```
 
-1. In the editor, update the values of the `YourID` and `Location` variables. Set `YourID` to your initials and todays date - i.e. **CP123019**, and set `Location` to the location that makes sense for your resources.
+1. 在“Cloud Shell”工具栏上，要编辑“lab16-setup.azcli”文件，请单击 **“打开编辑器”** （右边第二个按钮 - **{ }**）。
 
-    > [!NOTE] The `Location` variable should be set to the short name for the location. You can see a list of the available locations and their short-names (the **Name** column) by entering this command:
+1. 在 **“文件”** 列表中，要展开“lab16”文件夹并打开脚本文件，请单击 **“lab16”**，然后单击 **“lab16-setup.azcli”**。
+
+    编辑器现在将显示 **“lab16-setup.azcli”** 文件。
+
+1. 在编辑器中，更新 `{YOUR-ID}` 和 `{YOUR-LOCATION}` 已分配的值。
+
+    在以下引用示例中，你需要将 `{YOUR-ID}` 设置为你在本课程开始时创建的唯一 ID，即 **CAH191211**，然后将 `{YOUR-LOCATION}` 设置为对资源而言合理的位置。
+
+    ```bash
+    #!/bin/bash
+
+    RGName="AZ-220-RG"
+    IoTHubName="AZ-220-HUB-{YOUR-ID}"
+
+    Location="{YOUR-LOCATION}"
+    ```
+
+    > **注释**：  `{YOUR-LOCATION}` 变量应设置为该区域的短名称。输入以下命令，可以看到可用区域及其短名称的列表（**Name**列）：
     >
     > ```bash
     > az account list-locations -o Table
-    > ```
     >
-    > ```text
     > DisplayName           Latitude    Longitude    Name
     > --------------------  ----------  -----------  ------------------
     > East Asia             22.267      114.188      eastasia
@@ -96,76 +157,62 @@ To create these resources, please update and execute the **lab-setup.azcli** scr
     > East US 2             36.6681     -78.3889     eastus2
     > ```
 
-1. To save the changes made to the file and close the editor, click **...** in the top-right of the editor window and select **Close Editor**.
+1. 要保存对文件所做的更改并关闭编辑器，请单击编辑器窗口右上角的 **“...”**，然后单击 **“关闭编辑器”**。
 
-    If prompted to save, click **Save** and the editor will close.
+    如果提示保存，请单击 **“保存”**，编辑器将会关闭。
 
-    > [!NOTE] You can use **CTRL+S** to save at any time and **CTRL+Q** to close the editor.
+    > **注释**：  可以使用 **CTRL+S** 随时保存，使用 **CTRL+Q** 关闭编辑器。
 
-1. To create a resource group named **AZ-220-RG**, create an IoT Hub named **AZ-220-HUB-{YourID}**, add a device with a Device ID of **SimulatedSolutionThermostat**, and display the device connection string, enter the following command:
+1. 要创建本实验室所需的资源，请输入以下命令：
 
     ```bash
-    ./lab-setup.azcli
+    ./lab16-setup.azcli
     ```
 
-    This will take a few minutes to run. You will see JSON output as each step completes.
+    运行此脚本可能需要几分钟。每个步骤完成时，你将会看到 JSON 输出。
 
-1. Once complete, the connection string for the device, starting with "HostName=", is displayed. Copy this connection string into a text document and note that it is for the **SimulatedSolutionThermostat** device.
+    该脚本将首先创建一个名为 **AZ-220-RG** 的资源组和一个名为 **AZ-220-HUB-{YourID}** 的 IoT 中心。如果它们已经存在，将显示相应的消息。然后，脚本将添加 ID 为 **“SimulatedSolutionThermostat”** 的设备到 IoT 中心并显示设备连接字符串。
 
-## Exercise 2: Write code to simulate device that implements firmware update
+1. 请注意，脚本完成后，将显示设备的连接字符串。
 
-At the end of this task, you'll have a device simulator awaiting for a firmware update request from IoT Hub.
+    连接字符串以 "HostName=" 开头
 
-Before getting started with your first firmware update on an IoT device, take a minute to review what it actually means to implement such an operation and how Azure IoT Hub helps making the process.
+1. 将连接字符串复制到文本文档中，请注意，该字符串适用于 **SimulatedSolutionThermostat** 设备。
 
-### What does updating an IoT device's firmware imply?
+    将连接字符串保存到容易找到的位置后，就可以继续进行本实验室了。
 
-IoT devices most often are powered by optimized operating systems or even sometimes running code directly on the silicon (without the need for an actual operating system). In order to update the software running on this kind of devices the most common method is to flash a new version of the entire software package, including the OS as well as the apps running on it (called firmware).
+### 练习 2：写入代码以模拟实现固件更新的设备
 
-Because each device has a specific purpose, its firmware is also very specific and optimized for the purpose of the device as well as the constrained resources available.
+在本练习中，你将创建一个负责管理设备孪生所需属性更改的简单模拟器，还将触发一个模拟固件更新的本地过程。对实际设备而言，除了本地固件更新的实际步骤外，整个过程完全相同。然后，你将使用 Azure 门户为单个设备配置和执行固件更新。IoT 中心将使用设备孪生属性将配置更改请求传输到设备并监视进度。
 
-The process for updating a firmware is also something that can be very specific to the hardware itself and to the way the hardware manufacturer does things. This means that a part of the firmware update process is not generic and you will need to work with your device manufacturer to get the details of the firmware update process (unless you are developing your own hardware which means you probably know what the firmware update process).
+#### 任务 1：创建设备模拟器应用
 
-While firmware updates can be and used to applied manually on devices, this is no longer possible considering the rapid growth in scale of IoT solutions. Firmware updates are now more commonly done over-the-air (OTA) with deployments of new firmware managed remotely from the cloud.
+在此任务中，你将使用 Visual Studio Code 新建一个控制台应用。
 
-There is a set of common denominators to all over-the-air firmware updates for IoT devices:
+1. 打开 Visual Studio Code。
 
-1. Firmware versions are uniquely identified
-1. Firmware comes in a binary file format that the device will need to acquire from an online source
-1. Firmware is locally stored is some form of physical storage (ROM memory, hard drive,...)
-1. Device manufacturer provide a description of the required operations on the device to update the firmware.
+    如果你已完成本课程的实验室 3，你应当将 [.NET Core](https://dotnet.microsoft.com/download) 和[C# 扩展](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp)安装到你的开发环境中。
 
-### Azure IoT Hub Automatic Device Management
+1. 在 **“终端”** 菜单中，单击 **“新建终端”**。
 
-Azure IoT Hub offers advanced support for implementing device management operations on a single and on collections of devices. The [Automatic Device Management](https://docs.microsoft.com/azure/iot-hub/iot-hub-auto-device-config) feature allows to simply configure a set of operations, trigger them and then monitor their execution.
-
-In this exercise, you will create a simple simulator that will manage the device twin desired properties changes and will trigger a local process simulating a firmware update. The overall process would be exactly the same for a real device with the exception of the actual steps for the local firmware update. You will then use the Azure Portal to configure and execute a firmware update for a single device. IoT Hub will use the device twin properties to transfer the configuration change request to the device and monitor the progress
-
-## Create the device simulator app
-
-1. To use C# in Visual Studio Code, ensure both [.NET Core](https://dotnet.microsoft.com/download), and the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp) are installed
-
-1. Open a terminal in Visual Studio Code. Create a folder called **fwupdatedevice** and Navigate to the **fwupdatedevice** folder by running the following commands in the terminal:
+1. 在“终端”命令提示符下，输入以下命令：
 
     ```cmd/sh
     mkdir fwupdatedevice
     cd fwupdatedevice
     ```
 
-1. Enter the following command in the terminal to create a **Program.cs** file in your folder, along with a project file.
+    第一个命令将创建一个名为 **“fwupdatedevice”** 的文件夹。第二个命令导航到 **“fwupdatedevice”** 文件夹。
+
+1. 要新建控制台应用，输入以下命令：
 
     ```cmd/sh
     dotnet new console
     ```
 
-1. Enter `dotnet restore` in the terminal. This command gives your app access to the required .NET packages.
+    > **注释**：新建 .NET 控制台应用时，应该已将 `dotnet restore` 作为创建后的过程运行。如果在“终端”窗格中没有看到指示此情况已发生的消息，应用可能就无法访问所需的 .NET 包。为此，请输入以下命令：`dotnet restore`
 
-    ```cmd/sh
-    dotnet restore
-    ```
-
-
-1. In the terminal, install the required libraries. Enter the following commands and make sure all three libraries are installed:
+1. 要安装你的应用所需的库，请输入以下命令：
 
     ```cmd/sh
     dotnet add package Microsoft.Azure.Devices.Client
@@ -173,69 +220,83 @@ In this exercise, you will create a simple simulator that will manage the device
     dotnet add package Newtonsoft.Json
     ```
 
-1. From the **File** menu, open up the **Program.cs** file, and delete the default contents.
+    查看“终端”窗格中的消息，确保所有三个库均已安装。
 
-## Add code to your app
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**
 
-1. Open the **Program.cs** file for the device app.
+1. 在 **“打开文件夹”** 对话框中，导航到“终端”窗格中指定的文件夹位置，单击 **“fwupdatedevice”**，然后单击 **“选择文件夹”**
 
-1. Copy and paste the following code.
+    “资源管理器”窗格应该可以在 Visual Studio Code 中打开，并且你应该可以看到列出的 `Program.cs` 和 `fwupdatedevice.csproj` 文件。
+
+1. 在 **“资源管理器”** 窗格中，单击 **“Program.cs”**。
+
+1. 在“代码编辑器”窗格中，删除 Program.cs 文件的内容。
+
+#### 任务 2：向你的应用添加代码
+
+在此任务中，你将输入用于在设备上模拟固件更新的代码，以响应 IoT 中心生成的请求。
+
+1. 确保 **Program.cs** 文件在 Visual Studio Code 中处于打开状态。
+
+    “代码编辑器”窗格应该会显示一个空的代码文件。
+
+1. 将以下代码复制并粘贴到“代码编辑器”窗格中：
 
     ```cs
-    // Copyright (c) Microsoft. All rights reserved.
-    // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+    // 版权所有 (c) Microsoft。版权所有。
+    // 已获得 MIT License 颁发的许可证。有关完整的许可信息，请参阅项目根目录中的许可文件。
 
     using Microsoft.Azure.Devices.Shared;
     using Microsoft.Azure.Devices.Client;
     using System;
     using System.Threading.Tasks;
-    
+
     namespace fwupdatedevice
     {
         class SimulatedDevice
         {
-            // The device connection string to authenticate the device with your IoT hub.
+            // 用于通过 IoT 中心对设备进行身份验证的设备连接字符串。
             static string s_deviceConnectionString = "";
-    
-            // Device ID variable
+
+            // 设备 ID 变量
             static string DeviceID="unknown";
-    
-            // Firmware version variable
+
+            // 固件版本变量
             static string DeviceFWVersion = "1.0.0";
-    
-            // Simple console log function
+
+            // 简单的控制台记录功能
             static void LogToConsole(string text)
             {
-                // we prefix the logs with the device ID
+                // 将设备 ID 作为前缀添加到日志
                 Console.WriteLine(DeviceID + ": " + text);
             }
-    
-            // Function to retreive firmware version from the OS/HW
+
+            // 从OS/HW 检索固件版本的函数
             static string GetFirmwareVersion()
             {
-                // In here you would get the actual firmware version from the hardware. For the simulation purposes we will just send back the FWVersion variable value
+                // 在这里，你将从硬件获取实际固件版本。出于仿真目的，只发回 FWVersion 变量值
                 return DeviceFWVersion;
             }
-    
-            // Function for updating a device twin reported property to report on the current Firmware (update) status
-            // Here are the values expected in the "firmware" update property by the firmware update configuration in IoT Hub
-            //  currentFwVersion: The firmware version currently running on the device.
-            //  pendingFwVersion: The next version to update to, should match what's
-            //                    specified in the desired properties. Blank if there
-            //                    is no pending update (fwUpdateStatus is 'current').
-            //  fwUpdateStatus:   Defines the progress of the update so that it can be
-            //                    categorized from a summary view. One of:
-            //         - current:     There is no pending firmware update. currentFwVersion should
-            //                    match fwVersion from desired properties.
-            //         - downloading: Firmware update image is downloading.
-            //         - verifying:   Verifying image file checksum and any other validations.
-            //         - applying:    Update to the new image file is in progress.
-            //         - rebooting:   Device is rebooting as part of update process.
-            //         - error:       An error occurred during the update process. Additional details
-            //                    should be specified in fwUpdateSubstatus.
-            //         - rolledback:  Update rolled back to the previous version due to an error.
-            //  fwUpdateSubstatus: Any additional detail for the fwUpdateStatus . May include
-            //                     reasons for error or rollback states, or download %.
+
+            // 用于更新设备孪生报告属性以报告当前固件（更新）状态的函数
+            // 这些值属于“固件”更新属性，用于 IoT 中心中的固件更新配置
+            // currentFwVersion：设备上当前正在运行的固件版本。
+            //  pendingFwVersion：下一个目标更新版本，应该与
+            //                    在所需属性中指定。空白，条件是
+            // 没有挂起更新（fwUpdateStatus 为 'current'）。
+            //  fwUpdateStatus：   定义更新进度，以便
+            // 从摘要视图中对其进行分类。从属于：
+            //         - current：     无挂起固件更新。currentFwVersion 应该
+            // 与所需属性中的 fwVersion 一致。
+            //         - 正在下载：正在下载固件更新图片。
+            //         - 正在验证：   验证图像文件校验和，以及其他任何验证。
+            //         - 正在应用：    正在更新到新的映像文件。
+            //         - 重启：   设备正在重启，这是更新过程的一部分。
+            //         - 错误：       更新过程发生错误。其他详细信息
+            //                    应该在 fwUpdateSubstatus 中指定。
+            //         - rolledback：  由于出现错误，更新回滚到以前的版本。
+            //  fwUpdateSubstatus：关于 fwUpdateStatus 的所有其他详细信息。可能包括
+            //                     错误原因、回滚状态或下载百分比。
             //
             // reported: {
             //       firmware: {
@@ -263,20 +324,20 @@ In this exercise, you will create a simple simulator that will manage the device
                     properties["lastFwUpdateStartTime"] = lastFwUpdateStartTime;
                 if (lastFwUpdateEndTime!=null)
                     properties["lastFwUpdateEndTime"] = lastFwUpdateEndTime;
-    
+
                 TwinCollection reportedProperties = new TwinCollection();
                 reportedProperties["firmware"] = properties;
-    
+
                 await client.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
             }
-            
-            // Execute firmware update on the device
+
+            // 在设备上执行固件更新
             static async Task UpdateFirmware(DeviceClient client, string fwVersion, string fwPackageURI, string fwPackageCheckValue)
             {
                 LogToConsole("A firmware update was requested from version " + GetFirmwareVersion() + " to version " + fwVersion);
                 await UpdateFWUpdateStatus(client, null, fwVersion, null, null, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"), null);
-    
-                // Get new firmware binary. Here you would download the binary or retreive it from the source as instructed for your device, then double check with a hash the integrity of the binary you downloaded 
+
+                // 获取新的固件二进制文件。这里你将按照设备说明从源中下载或检索二进制文件，然后使用哈希值仔细检查下载的二进制文件的完整性
                 LogToConsole("Downloading new firmware package from " + fwPackageURI);
                 await UpdateFWUpdateStatus(client, null, null, "downloading", "0", null, null);
                 await Task.Delay(2 * 1000);
@@ -287,63 +348,63 @@ In this exercise, you will create a simple simulator that will manage the device
                 await UpdateFWUpdateStatus(client, null, null, "downloading", "75", null, null);
                 await Task.Delay(2 * 1000);
                 await UpdateFWUpdateStatus(client, null, null, "downloading", "100", null, null);
-                // report the binary has been downloaded
+                // 报告二进制文件已下载完成
                 LogToConsole("The new firmware package has been successfully downloaded.");
-                
-                // Check binary integrity
+
+                // 检查二进制完整性
                 LogToConsole("Verifying firmware package with checksum " + fwPackageCheckValue);
                 await UpdateFWUpdateStatus(client, null, null, "verifying", null, null, null);
                 await Task.Delay(5 * 1000);
-                // report the binary has been downloaded
+                // 报告二进制文件已下载完成
                 LogToConsole("The new firmware binary package has been successfully verified");
-    
-                // Apply new firmware
+
+                // 应用新固件
                 LogToConsole("Applying new firmware");
                 await UpdateFWUpdateStatus(client, null, null, "applying", null, null, null);
                 await Task.Delay(5 * 1000);
-    
-                // On a real device you would reboot at the end of the process and the device at boot time would report the actual firmware version, which if successfull should be the new version.
-                // For the sake of the simulation, we will simply wait some time and report the new firmware version
+
+                // 在实际设备上，你可在过程结束时重新启动，设备在启动时会报告实际固件版本，如果启动成功，固件版本就应该是新版本。
+                // 为方便模拟，我们只需稍作等待，并报告新的固件版本。
                 LogToConsole("Rebooting");
                 await UpdateFWUpdateStatus(client, null, null, "rebooting", null, null, DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"));
                 await Task.Delay(5 * 1000);
-    
-                // On a real device you would issue a command to reboot the device. Here we are simply runing the init function
+
+                // 在真实设备上，你将发出命令以重新启动设备。在这里，我们只是在运行 init 函数
                 DeviceFWVersion = fwVersion;
                 await InitDevice(client);
-    
+
             }
-    
-            // Callback for responding to desired property changes 
+
+            // 用于响应所需属性更改的回调
             static async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
             {
                 LogToConsole("Desired property changed:");
                 LogToConsole($"{desiredProperties.ToJson()}");
-    
-                // Execute firmware update
+
+                // 执行固件更新
                 if (desiredProperties.Contains("firmware") && (desiredProperties["firmware"]!=null))
                 {
-                    // In the desired properties, we will find the following information:
-                    // fwVersion: the version number of the new firmware to flash
-                    // fwPackageURI: URI from where to download the new firmware binary
-                    // fwPackageCheckValue: Hash for validating the integrity of the binary  downloaded
-                    // We will assume the version of the firmware is a new one
+                    // 在所需属性中，将找到以下信息：
+                    // fwVersion：待刷入新固件的版本号
+                    // fwPackageURI：下载新固件二进制文件的 URI
+                    // fwPackageCheckValue：用于验证所下载二进制文件完整性的哈希值
+                    // 假定固件版本为新版本
                     TwinCollection fwProperties = new TwinCollection(desiredProperties["firmware"].ToString());
                     await UpdateFirmware((DeviceClient)userContext, fwProperties["fwVersion"].ToString(), fwProperties["fwPackageURI"].ToString(), fwProperties["fwPackageCheckValue"].ToString());
-    
+
                 }
             }
-    
+
             static async Task InitDevice(DeviceClient client)
             {
                 LogToConsole("Device booted");
                 LogToConsole("Current firmware version: " + GetFirmwareVersion());
                 await UpdateFWUpdateStatus(client, GetFirmwareVersion(), "", "current", "", "", "");
             }
-    
+
             static async Task Main(string[] args)
             {
-                // Get the device connection string from the command line
+                // 从命令行获取设备连接字符串
                 if (string.IsNullOrEmpty(s_deviceConnectionString) && args.Length > 0)
                 {
                     s_deviceConnectionString = args[0];
@@ -352,30 +413,30 @@ In this exercise, you will create a simple simulator that will manage the device
                     Console.WriteLine("Please enter the connection string as argument.");
                     return;
                 }
-    
+
                 DeviceClient deviceClient = DeviceClient.CreateFromConnectionString(s_deviceConnectionString, TransportType.Mqtt);
-    
+
                 if (deviceClient == null)
                 {
                     Console.WriteLine("Failed to create DeviceClient!");
                     return;
                 }
-    
-                // Get the device ID 
+
+                // 获取设备 ID
                 string[] elements = s_deviceConnectionString.Split('=',';');
-    
+
                 for(int i=0;i<elements.Length; i+=2)
                 {
                     if (elements[i]=="DeviceId") DeviceID = elements[i+1];
                 }
-    
-                // Run device init routine
+
+                // 运行设备 init 例程
                 await InitDevice(deviceClient);
-    
-                // Attach callback for Desired Properties changes
+
+                // 附加所需属性更改的回调
                 await deviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, deviceClient).ConfigureAwait(false);
-    
-                // Wait for keystroke to end app
+
+                // 等待按键以结束应用
                 // TODO
                 while (true)
                 {
@@ -385,63 +446,69 @@ In this exercise, you will create a simple simulator that will manage the device
             }
         }
     }
-        
     ```
 
-    > [!NOTE]
-    > Read through the comments in the code, noting how the device reacts to device twin changes to execute a firmware update based on the configuration shared in the desired Property "firmware". You can also note the function that will report the current firmware update status through the reported properties of the device twin.
+    > **注释**： 
+    > 通读代码中的注释，注意设备对设备孪生更改作何反应，以便基于在所需属性“固件”中共享的配置来执行固件更新。你还会注意到一项功能，即通过设备孪生的报告属性报告当前固件的更新状态。
 
-1. After you've entered the code below into the **Program.cs** file, you can run the app with the command `dotnet run`. This command will run the **Program.cs** file in the current folder, so ensure you are in the fwupdatedevice folder. 
+1. 在 **“文件”** 菜单中，单击 **“保存”**。
 
+设备端代码现已完成。接下来，你将测试此模拟设备的固件更新过程是否符合预期。
 
-    ```cmd/sh
-    dotnet run
+### 练习 3：在单个设备上测试固件更新
+
+在本练习中，将使用 Azure 门户新建设备管理配置，并将其应用于单个模拟设备。
+
+#### 任务 1：启动设备模拟器
+
+1. 如有必要，请在 Visual Studio Code 中打开 **fwupdatedevice** 项目。
+
+1. 确保已打开“终端”窗格。
+
+    命令提示符的文件夹位置为 `fwupdatedevice` 文件夹。
+
+1. 要运行 `fwupdatedevice` 应用，请输入以下命令：
+
+    ``` bash
+    dotnet run "<device connection string>"
     ```
 
+    > **注释**：记得将占位符替换为实际的设备连接字符串，并确保将连接字符串置于英文双引号 "" 中间。 
+    > 
+    > 例如：`"HostName=AZ-220-HUB-{YourID}.azure-devices.net;DeviceId=SimulatedSolutionThermostat;SharedAccessKey={}="`
 
-1. Save the **Program.cs** file.
+1. 查看“终端”窗格的内容。
 
-At this point your device is ready to be manage from IoT Hub. Next, we will test that the firmware update process works as expected for this simulated device.
+    你应该在终端中看到以下输出（其中“mydevice”是创建设备标识时使用的设备 ID）：
 
-## Exercise 3: Test firmware update on a single device
-
-In this exercise, we will use the Azure portal to create a new device management configuration and apply it to our single simulated device.
-
-## Start device simulator
-
-In the same terminal you setup the application for the simulated device, start the simulator typing the following command (replacing \<device connection string\> with the device connection string you got at the end of task 2):
-
-``` 
-dotnet run "<device connection string>" 
-```
-
-You should see the following output in the terminal (where "mydevice" is the device ID you used when creating the device identity):
-
-``` 
-    mydevice: Device booted
-    mydevice: Current firmware version: 1.0.0
-```
-
-> [!NOTE]
-> Make sure to put "" around your connection string. For example: "HostName=AZ-220-HUB-{YourID}.azure-devices.net;DeviceId=SimulatedSolutionThermostat;SharedAccessKey={}="
-
-## Create the device management configuration
-
-1. Sign into the [Azure portal](https://portal.azure.com/learn.docs.microsoft.com?azure-portal=true).
-
-1. Go to the IoT Hub blade. You can find your IoT Hub by typing in the search bar (on top) the name you used when creating it in task 2.
-
-1. In the IoT Hub, find the **Automatic Device Management** blade and select **IoT Device Configuration**, then select **Add Device Configuration**
-
-1. Enter an ID for the configuration such as **firmwareupdate** then click on **Next: Twins settings >** on the bottom.
-    
-1. For the **Device Twin Property** field, enter the following:
-
+    ``` bash
+        mydevice：已启动设备
+        mydevice：当前固件版本：1.0.0
     ```
-    properties.desired.firmware
-    ```
-    
-1. In the **Device Twin Property Content** field type the following. Then click on **Next: Metrics >**
+
+#### 任务 2：创建设备管理配置
+
+1. 如有必要，请使用你的 Azure 帐户凭据登录到 [Azure 门户](https://portal.azure.com/learn.docs.microsoft.com?azure-portal=true)。
+
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
+
+1. 在 Azure 门户仪表板上，单击 **“AZ-220-HUB-{YOUR-ID}”**。
+
+    现在应显示 IoT 中心边栏选项卡。
+ 
+1. 在左侧导航菜单中的 **“自动设备管理”** 下，单击 **“IoT 设备配置”**。
+
+1. 在 **“IoT 设备配置”** 窗格中，单击 **“添加设备配置”**。
+
+1. 在 **“创建设备孪生配置”** 边栏选项卡的 **“名称”** 下，输入 **“firmwareupdate”**
+
+    确保你在配置的必填字段 **“名称”** 处，而不是在 **“标签”** 处输入“`firmwareupdate`”。 
+
+1. 在边栏选项卡底部，单击“下一步:”**孪生设置 >**。
+
+1. 在 **“设备孪生设置”** 下的 **“设备孪生属性”** 字段中，输入 **“properties.desired.firmware”**
+
+1. 在 **“设备孪生属性内容”** 字段中，输入以下内容：
 
     ``` json
     {
@@ -450,24 +517,49 @@ You should see the following output in the terminal (where "mydevice" is the dev
         "fwPackageCheckValue":"1234"
     }
     ```
-   
-1. In the **Metrics** blade we will define a custom metric to track the firmware update was effective. Create a new custom metric called **"fwupdated"** and type in the below criteria, then click on **Next: Target devices >**
+
+1. 在边栏选项卡底部，单击 **“下一步:指标 >**.
+
+    你将使用自定义指标来跟踪固件更新是否有效。 
+
+1. 在 **“指标”** 选项卡的 **“指标名称”** 下，输入 **“fwupdated”**
+
+1. 在 **“指标条件”** 下，输入以下内容：
 
     ``` SQL
-        SELECT deviceId FROM devices
-            WHERE properties.reported.firmware.currentFwVersion='1.0.1'
+    SELECT deviceId FROM devices
+        WHERE properties.reported.firmware.currentFwVersion='1.0.1'
     ```
-    
-1. In the **Priority** field, type **"10"** and in the **Target Condition** field, type in the following query, replacing "\<your device id\>" with the device Id you used to create the device in task 2, then click on **Next: Review + Create >**
+
+1. 在边栏选项卡底部，单击 **“下一步:目标设备 >**。
+
+1. 在 **“目标设备”** 选项卡上的 **“优先级”** 下的 **“优先级（更高的值 ...）”** 字段中，输入 **“10”**。
+
+1. 在 **“目标条件”** 的 **“目标条件”** 字段中，输入以下查询：
 
     ``` SQL
-        deviceId='<your device id>'
+    deviceId='<your device id>'
     ```
-    
-1. On the next blade you should see the validation succeed for your new configuration. Click on **Create**.
 
-1. Once the configuration has been created you will see it in the **Automatic Device Management** blade.
+    > **注释**：请务必将 `'<your device id>'` 替换为你用来创建设备的设备 ID。例如：`'SimulatedSolutionThermostat'`
 
-At this point IoT Hub will look for devices matching the configuration's target devices criteria, and will apply the firmware update configuration automatically.
-    
-You have validated that the firmware update process on your simulated device works. You can stop the device simulator by simply pressing the "Enter" key in the terminal.
+1. 在边栏选项卡底部，单击 **“下一步:查看 + 创建 >**
+
+    在 **“查看 + 创建”** 选项卡打开后，你应该会看到新配置“已通过验证”的消息。 
+
+1. 在 **“查看 + 创建”** 选项卡上，如果显示“通过验证”消息，请单击 **“创建”**。
+
+    如果显示“通过验证”消息，则需要先返回并检查工作，然后才能创建配置。
+
+1. 在 **“IoT 设备配置”** 窗格上的 **“配置名称”** 下，确认已列出新 **“firmwareupdate”** 配置。  
+
+    创建新配置后，IoT 中心将查找与配置的目标设备标准匹配的设备，并将自动应用固件更新配置。
+
+1. 切换到 Visual Studio Code 窗口，然后查看“终端”窗格的内容。
+
+    “终端”窗格应包括你的应用生成的新输出，其中列出了触发的固件更新过程的进度。
+
+1. 停止模拟应用，然后关闭 Visual Studio Code。
+
+    你只需按下终端中的 Enter 键即可停止设备模拟器。
+

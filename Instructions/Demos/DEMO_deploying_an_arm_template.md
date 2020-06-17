@@ -1,12 +1,12 @@
----
+﻿---
 demo:
-    title: 'Demo: Deploying an ARM Template'
-    module: 'Module 1: Exploring Azure Resource Manager'
+    title: '演示：部署 ARM 模板'
+    module: '模块 1：浏览 Azure 资源管理器'
 ---
 
-# Demo: Deploying an ARM Template
+# 演示：部署 ARM 模板
 
-## Instructions
+## 说明
 
 1. Quisque dictum convallis metus, vitae vestibulum turpis dapibus non.
 
@@ -30,7 +30,7 @@ demo:
 
 1. Fusce tincidunt sapien nec dolor congue facilisis lacinia quis urna.
 
-    > **Note**: Ut feugiat est id ultrices gravida.
+    > **注释**：Ut feugiat est id ultrices gravida.
 
 1. Phasellus urna lacus, luctus at suscipit vitae, maximus ac nisl. 
 

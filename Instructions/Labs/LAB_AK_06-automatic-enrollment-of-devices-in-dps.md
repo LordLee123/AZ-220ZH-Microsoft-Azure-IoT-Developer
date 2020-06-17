@@ -1,74 +1,107 @@
----
+﻿---
 lab:
-    title: 'Lab 06: Automatically provision IoT devices securely and at scale with DPS'
-    module: 'Module 3: Device Provisioning at Scale'
+    title: '实验室 06：使用 DPS 安全、大规模地自动预配 IoT 设备'
+    module: '模块 3：大规模设备预配'
 ---
 
-# Automatically provision IoT devices securely and at scale with DPS
+# 使用 DPS 安全且大规模地自动预配 IoT 设备
 
-## Lab Scenario
+## 实验室场景
 
-Our asset tracking solution is getting bigger, and provisioning devices one by one cannot scale. We want to use Device Provisioning Service to enroll many devices automatically and securely using x.509 certificate authentication.
+你目前在 Contoso 的资产监视和跟踪解决方案上所做的工作使你能够使用个人注册验证设备预配和取消预配流程。管理团队现在要求你开始大规模实实现该流程。
 
-## In This Lab
+要使项目继续进行，你需要证明设备预配服务可用于使用 X.509 证书身份验证自动安全地注册更多设备。
 
-In this lab, you will setup a _group enrollment_ within Device Provisioning Service (DPS) using a CA x.509 certificate. You will also configure a simulated IoT device that will authenticate with DPS using a device certificate signed by the CA Certificate. The IoT device will also be configured to handle changes to the device twin's desired properties as configured initially through DPS, and then modified via Azure IoT Hub. Finally, you will retire the IoT device and the group enrollment with DPS.
+将创建以下资源：
 
-This lab includes:
+![实验室 6 体系结构](media/LAB_AK_06-architecture.png)
 
-* Verify Lab Prerequisites
-* Generate and Configure x.509 CA Certificates using OpenSSL
-* Create Group Enrollment in DPS
-* Configure simulated device with x.509 Certificate
-* Handle device twin desired property Changes
-* Automatic Enrollment of simulated device
-* Retire Group Enrollment of simulated device
+## 本实验室概览
 
-## Exercise 1: Verify Lab Prerequisites
+在本实验室中，你将完成以下活动：
 
-This lab assumes the following resources are available:
+* 验证是否满足实验室先决条件（具有必需的 Azure 资源）
+* 使用 OpenSSL 生成和配置 X.509 CA 证书
+* 在 DPS 中创建组注册
+* 使用 X.509 证书配置模拟设备
+* 处理设备孪生必需属性的更改
+* 模拟设备的自动注册
+* 停用模拟设备的组注册
 
-| Resource Type | Resource Name |
+## 实验室说明
+
+### 练习 1：验证实验室先决条件
+
+本实验室假定以下 Azure 资源可用：
+
+| 资源类型 | 资源名称 |
 | :-- | :-- |
-| Resource Group | AZ-220-RG |
-| IoT Hub | AZ-220-HUB-_{YOUR-ID}_ |
-| Device Provisioning Service | AZ-220-DPS-_{YOUR-ID}_ |
+| 资源组 | AZ-220-RG |
+| IoT 中心 | AZ-220-HUB-_{YOUR-ID}_ |
+| 设备预配服务 | AZ-220-DPS-_{YOUR-ID}_ |
 
-If the resources are unavailable, please execute the **lab-setup.azcli** script before starting the lab.
+如果这些资源不可用，则需要先按照以下说明运行 **lab06-setup.azcli** 脚本，然后再继续完成练习 2。脚本文件包含在本地克隆作为开发环境配置（实验室 3）的 GitHub 存储库中。
 
-The **lab-setup.azcli** script is written to run in a **bash** shell environment - the easiest way to execute this is in the Azure Cloud Shell.
+**lab06-setup.azcli** 脚本编写为在 **bash** shell 环境中运行（最简单的方法是在 Azure Cloud Shell 中执行此操作）。
 
-1. Using a browser, open the [Azure Shell](https://shell.azure.com/) and login with the Azure subscription you are using for this course.
+1. 使用浏览器，打开 [Azure Cloud Shell](https://shell.azure.com/)，并使用本课程使用的 Azure 订阅登录。
 
-1. To ensure the Azure Shell is using **Bash**, ensure the dropdown selected value in the top-left is **Bash**.
+    如果系统提示设置 Cloud Shell 的存储，请接受默认设置。
 
-1. To upload the setup script, in the Azure Shell toolbar, click **Upload/Download files** (fourth button from the right).
+1. 验证 Azure Cloud Shell 是否正在使用 **Bash**。
 
-1. In the dropdown, select **Upload** and in the file selection dialog, navigate to the **lab-setup.azcli** file for this lab. Select the file and click **Open** to upload it.
+    Azure Cloud Shell 页面左上角的下拉菜单用于选择环境。验证所选的下拉值是否为 **Bash**。
 
-    A notification will appear when the file upload has completed.
+1. 在 Azure Shell 工具栏上，单击**上传/下载文件** （从右数第四个按钮）。
 
-1. You can verify that the file has uploaded by listing the content of the current directory by entering the `ls` command.
+1. 在下拉菜单中，单击 **“上传”**。
 
-1. To create a directory for this lab, move **lab-setup.azcli** into that directory, and make that the current working directory, enter the following commands:
+1. 在“文件选择”对话框中，导航到配置开发环境时下载的 GitHub 实验室文件的文件夹位置。
+
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
+
+    * Allfiles
+      * 实验室
+          * 06 - 在 DPS 中自动注册设备
+            * 设置
+
+    lab06-setup.azcli 脚本文件位于实验室 6 的 Setup 文件夹中。
+
+1. 选择 **lab06-setup.azcli** 文件，然后单击 **“打开”**。
+
+    文件上传完成后，将显示一条通知。
+
+1. 若要验证在 Azure Cloud Shell 中已上传了正确文件，请输入以下命令：
+
+    ```bash
+    ls
+    ```
+
+    使用 `ls` 命令列出当前目录的内容。你应该会看到列出了 lab06-setup.azcli 文件。
+
+1. 若要为此实验室创建一个包含安装脚本的目录，然后移至该目录，请输入以下 Bash 命令：
 
     ```bash
     mkdir lab6
-    mv lab-setup.azcli lab6
+    mv lab06-setup.azcli lab6
     cd lab6
     ```
 
-1. To ensure the **lab-setup.azcli** has the execute permission, enter the following commands:
+1. 为了确保 **lab06-setup.azcli** 脚本具有执行权限，请输入以下命令：
 
     ```bash
-    chmod +x lab-setup.azcli
+    chmod +x lab06-setup.azcli
     ```
 
-1. To edit the **lab-setup.azcli** file, click **{ }** (Open Editor) in the toolbar (second button from the right). In the **Files** list, select **lab5** to expand it and then select **lab-setup.azcli**.
+1. 在 Cloud Shell 工具栏上，要编辑 lab06-setup.azcli 文件，请单击 **“打开编辑器”**（右侧第二个按钮 - **{ }**）。
 
-    The editor will now show the contents of the **lab-setup.azcli** file.
+1. 在 **“文件”** 列表中，要展开“lab6”文件夹并打开脚本文件，请单击 **“lab6”**，再单击 **“lab06-setup.azcli”**。
 
-1. In the editor, update the values of the `{YOUR-ID}` and `{YOUR-LOCATION}` variables. Set `{YOUR-ID}` to the Unique ID you created at the start of this - i.e. **CAH191211**, and set `{YOUR-LOCATION}` to the location that makes sense for your resources.
+    编辑器现在将显示 **lab06-setup.azcli** 文件的内容。
+
+1. 在编辑器中，更新 `{YOUR-ID}` 和 `{YOUR-LOCATION}` 变量的值。
+
+    以下面的示例为例，需要将 `{YOUR-ID}` 设置为在本课程开始时创建的唯一 ID，即 **CAH191211**，然后将 `{YOUR-LOCATION}` 设置为对你的资源有意义的位置。
 
     ```bash
     #!/bin/bash
@@ -79,8 +112,8 @@ The **lab-setup.azcli** script is written to run in a **bash** shell environment
     Location="{YOUR-LOCATION}"
     ```
 
-    > [!NOTE] The `{YOUR-LOCATION}` variable should be set to the short name for the region. You can see a list of the available regions and their short-names (the **Name** column) by entering this command:
-
+    > **注释**：  `{YOUR-LOCATION}` 变量应设置为该区域的短名称。输入以下命令，可以看到可用区域及其短名称的列表（**名称**列）：
+    >
     > ```bash
     > az account list-locations -o Table
     >
@@ -93,183 +126,221 @@ The **lab-setup.azcli** script is written to run in a **bash** shell environment
     > East US 2             36.6681     -78.3889     eastus2
     > ```
 
-1. To save the changes made to the file and close the editor, click **...** in the top-right of the editor window and select **Close Editor**.
+1. 要保存对文件所做的更改并关闭编辑器，请单击编辑器窗口右上角的 **“...”**，然后单击 **“关闭编辑器”**。
 
-    If prompted to save, click **Save** and the editor will close.
+    如果提示保存，请单击 **“保存”**，编辑器将会关闭。
 
-    > [!NOTE] You can use **CTRL+S** to save at any time and **CTRL+Q** to close the editor.
+    > **注释**：  可以使用 **CTRL+S** 随时保存，使用 **CTRL+Q** 关闭编辑器。
 
-1. To create a resources required for this lab, enter the following command:
+1. 要创建本实验室所需的资源，请输入以下命令：
 
     ```bash
-    ./lab-setup.azcli
+    ./lab06-setup.azcli
     ```
 
-    This will take a few minutes to run. You will see JSON output as each step completes.
+    运行将花费几分钟时间。每个步骤完成时，你将会看到 JSON 输出。
 
-    Once the script has completed, you will be ready to continue with the lab.
+    脚本完成后，就可以继续实验室的内容。
 
-## Exercise 2: Generate and Configure x.509 CA Certificates using OpenSSL
+### 练习 2：使用 OpenSSL 生成和配置 X.509 CA 证书
 
-In this exercise, you will generate an x.509 CA Certificate using OpenSSL within the Azure Cloud Shell. This certificate will be used to configure the Group Enrollment within the Device Provisioning Service (DPS).
+在本练习中，你将在 Azure Cloud Shell 中使用 OpenSSL 生成 X.509 CA 证书。此证书将用于在设备预配服务 (DPS) 中配置组注册。
 
-### Task 1: Generate the certificates
+#### 任务 1：生成证书
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+1. 如有必要，使用你在本课程中使用的 Azure 帐户凭据登录到 [Azure 门户](https://portal.azure.com)。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. Open the **Azure Cloud Shell** by clicking the **Terminal** icon within the top header bar of the Azure portal, and select the **Bash** shell option.
+1. 在门户窗口的右上角，请单击 **“Cloud Shell”** 打开 Azure Cloud Shell。
 
-    > [!NOTE] Both *Bash* and *PowerShell* interfaces for the Azure Cloud Shell support the use of **OpenSSL**. In this unit you will use some helper scripts written for the *Bash* shell.
+    Cloud Shell 按钮有一个代表命令提示符 **`>_`** 的图标。
 
-1. Within the Azure Cloud Shell, run the following commands that will download a helper script for using *OpenSSL* to generate x.509 CA Certificates. They will be placed within the `~/certificates` directory inside your Cloud Shell storage.
+    Cloud Shell 窗口将在靠近显示屏底部的位置打开。
+
+1. 在 Cloud Shell 窗口的左上角，确保将 **Bash** 选为环境选项。
+
+    > **注释**：  Azure Cloud Shell 的 *Bash* 和 PowerShell** 界面都支持使用 **OpenSSL**。在本练习中，你将使用专为 *Bash* shell 编写的一些帮助程序脚本。
+
+1. 在 Cloud Shell 命令提示符下，要下载将要使用的 Azure IoT 帮助程序脚本，请输入以下命令：
 
     ```sh
-    # create certificates directory
+    #创建证书目录
     mkdir certificates
-    # navigate to certificates directory
+    #导航到证书目录
     cd certificates
 
-    # download helper script files
+    #下载帮助程序脚本文件
     curl https://raw.githubusercontent.com/Azure/azure-iot-sdk-c/master/tools/CACertificates/certGen.sh --output certGen.sh
     curl https://raw.githubusercontent.com/Azure/azure-iot-sdk-c/master/tools/CACertificates/openssl_device_intermediate_ca.cnf --output openssl_device_intermediate_ca.cnf
     curl https://raw.githubusercontent.com/Azure/azure-iot-sdk-c/master/tools/CACertificates/openssl_root_ca.cnf --output openssl_root_ca.cnf
 
-    # update script permissions so user can read, write, and execute it
+    #更新脚本权限，以便用户可以读取、写入和执行它
     chmod 700 certGen.sh
     ```
 
-    These helper scripts are being downloaded from the `Azure/azure-iot-sdk-c` open source project hosted on Github. This is an open source project that's a part of the Azure IoT SDK. The `certGen.sh` helper script will help demonstrate the purpose of CA Certificates without diving into the specifics of OpenSSL configuration that's outside the scope of this unit.
+    帮助程序脚本和支持文件是从托管在 Github 上的 `Azure/azure-iot-sdk-c` 开放源代码项目中下载的。这是一个开放源代码项目，是 Azure IoT SDK 的一部分。`certGen.sh` 帮助程序脚本将帮助演示 CA 证书的用途，而无需深入研究本实验室范围之外的 OpenSSL 配置的细节。
 
-    For additional instructions on using this helper script, and for instructions on how to use PowerShell instead of Bash, please see this link: <https://github.com/Azure/azure-iot-sdk-c/blob/master/tools/CACertificates/CACertificateOverview.md>
+    有关使用此帮助程序脚本的其他说明，以及有关如何使用 PowerShell 代替 Bash 的说明，请参见以下链接：[https://github.com/Azure/azure-iot-sdk-c/blob/master/tools/CACertificates/CACertificateOverview.md](https://github.com/Azure/azure-iot-sdk-c/blob/master/tools/CACertificates/CACertificateOverview.md)
 
-    > [!WARNING] Certificates created by this helper script **MUST NOT** be used for Production. They contain hard-coded passwords ("*1234*"), expire after 30 days, and most importantly are provided for demonstration purposes to help you quickly understand CA Certificates. When building products against CA Certificates, you'll need to use your own security best practices for certificate creation and lifetime management.
+    > **警告**：由此帮助程序脚本创建的证书**禁止**用于生产。它们包含硬编码的密码（“*1234*”），将在 30 天后过期，并且最重要的是，它们用于演示目的，以帮助你快速了解 CA 证书。基于 CA 证书构建产品时，需要按照自己的安全最佳做法来创建证书和管理生命周期。
 
-1. Review the contents of the script you downloaded using whatever tool you'd prefer (`more`, `code`, `vi`, etc.) to validate the code you downloaded.
+    如果感兴趣，你可以使用 Cloud Shell 内置的编辑器来快速扫描你下载的脚本文件的内容。
 
-1. The first x.509 certificates needed are CA and intermediate certificates. These can be generated using the `certGen.sh` helper script by passing the `create_root_and_intermediate` option.
+    * 在 Cloud Shell 中，要打开编辑器，请单击 **“`{}`”**。
+    * 在“文件”列表中，单击 **“证书”**，然后单击 **“certGen.sh”**
 
-    Run the following command within the `~/certificates` directory of the **Azure Cloud Shell** to generate the CA and intermediate certificates:
+    > **注释**：如果你熟悉 Bash 环境中的其他文本文件查看工具，例如 `more` 或 `vi` 命令，你也可以使用这些工具。
+
+    下一步将使用该脚本来创建根证书和中间证书。
+
+1. 要生成根证书和中间证书，请输入以下命令：
 
     ```sh
     ./certGen.sh create_root_and_intermediate
     ```
 
-1. The previous command generated a Root CA Certificate named `azure-iot-test-only.root.ca.cert.pem` is located within the `./certs` directory.
+    注意，你使用 `create_root_and_intermediate` 选项运行了该脚本。此命令假设你正在从 `~/certificates` 目录运行脚本。
 
-    Run the following command within the **Azure Cloud Shell** to download this certificate to your local machine so it can be uploaded to DPS.
+    此命令生成了名为 `azure-iot-test-only.root.ca.cert.pem` 的根 CA 证书，并将该证书放在了 `./certs` 目录中，该目录位于你创建的证书目录下。
+
+1. 要将根证书下载到本地计算机（以便上传到 DPS），请输入以下命令
 
     ```sh
     download ~/certificates/certs/azure-iot-test-only.root.ca.cert.pem
     ```
 
-### Task 2: Configurate your DPS to trust the root certificate
+    系统将提示你将文件保存到本地计算机。记下文件的保存位置，在下一个任务中将需要用到它。
 
-1. Navigate to your **Device Provisioning Service** (DPS) named `AZ-220-DPS-_{YOUR-ID}_` within the Azure portal.
+#### 任务 2：配置 DPS 以信任根证书
 
-2. On the left side of the **Device Provisioning Service** blade, in the **Settings** section, click the **Certificates** link.
+1. 在 Azure 门户中，打开“设备预配服务”。
 
-3. On the **Certificates** pane, click the **Add** button at the top to start process of uploading the x.509 CA Certificate to the DPS service.
+    这是设备预配服务名称 `AZ-220-DPS-{YOUR-ID}`。
 
-5. On the **Add Certificate** pane, for **Certificate Name**, enter a logical name for the _Root CA Certificate_ into the field. For example, `root-ca-cert`.
+1. 在 **“设备预配服务”** 边栏选项卡左侧的 **“设置”** 部分，单击 **“证书”**。
 
-    [!NOTE] This name could be the same as the name of the certificate file, or something different. This is a logical name that has no correlation to the _Common Name_ within the x.509 CA Certificate.
+1. 在 **“证书”** 窗格的顶部，单击 **“添加”**。  
 
-4. For the **Certificate .pem or .cer file.** upload field, select the `azure-iot-test-only.root.ca.cert.pem` CA Certificate that you just downloaded.
+    单击 **“添加”** 会启动将 X.509 CA 证书上传到 DPS 服务的过程。
 
-6. Click **Save**.
+1. 在 **“添加证书”** 窗格的 **“证书名称”** 下，输入 **root-ca-cert**。
 
-    Once the x.509 CA Certificate has been uploaded, the _Certificates_ pane will display the certificate with the _Status_ of _Unverified_. Before this CA Certificate can be used to authenticate devices to DPS, you will need to verify **Proof of Possession** of the certificate.
+    重要的是要提供一个使你能够区分各个证书的名称，例如根证书、中间证书或链中层次结构级别的多个证书。
 
-7. To start the process of verifying **Proof of Possession** of the certificate, click on the **CA Certificate** that was just uploaded to open the **Certificate Details** pane for it.
+    > **注释**：你输入的根证书名称可以与证书文件的名称相同，也可以不同。你提供的名称是逻辑名称，与内容 X.509 CA 证书中嵌入的公用名称__不相关。
 
-8. On the **Certificate Details** pane, click on the **Generate Verification Code** button.  (You may need to scroll to see it.)
+1. 在 **“证书 .pem 或 .cer 文件”**下的“选择文件”__文本框右侧，单击 **“打开”**。
 
-9.  Copy the newly generated **Verification Code** that is displayed above the _Generate Verification Code_ button.  The button to the right of the _Verification Code_ textbox will do this for you.
+    单击文本字段右侧的 **“打开”** 按钮将打开一个 OPen 文件对话框，在该对话框中，你可以导航到先前下载的 `azure-iot-test-only.root.ca.cert.pem` CA 证书。
 
-    _Proof of Possession_ of the CA certificate is provided to DPS by uploading a certificate generated from the CA certificate with the verifcation code that was just generated within DPS. This is how you provide proof that you actually own the CA Certificate.
+1. 在窗格底部，单击 **“保存”**。
 
-    > [!IMPORTANT] You will need to leave the **Certificate Details** pane open while you generate the verification certificate. If you close the pane, you will invalidate the verification code, and will need to generate a new one.
+    上传 X.509 CA 证书后， _“证书”_ 窗格将显示该证书，并且 _“状态”_ 为 _“未验证”_。在使用此 CA 证书对 DPS 的设备进行身份验证之前，你需要验证证书的 **“所有权证明”** 。
 
-10. Open the **Azure Cloud Shell**, if it's not still open from earlier, and navigate to the `~/certificates` directory.
+1. 要启动验证证书的 **“拥有证明”** 过程，请单击 **root-ca-cert**。
 
+1. 在 **“证书详细信息”** 窗格中，单击 **“生成验证码”**。
 
-11. Run the following command, passing in your copied verification code, to create the verification certificate:
+    你可能需要向下滚动才能看到 **“生成验证码”** 按钮。
+
+    单击该按钮时，它会将生成的代码置于“验证码”字段中。
+
+1. 在 **“验证码”** 的右侧，单击 **“复制到剪贴板”**。
+
+    通过上传使用刚刚在 DPS 中生成的验证码从 CA 证书生成的证书，向 DPS 提供 CA 证书的“拥有证明”__。这是如何证明你实际拥有 CA 证书的方法。
+
+    > **重要事项**：生成验证证书时，需要保持打开 **“证书详细信息”** 窗格。如果关闭窗格，将导致验证码无效，并且需要生成一个新的验证码。
+
+1. 如果仍然无法在之前的基础上打开，则打开 **Azure Cloud Shell**，并导航到 `~/certificates` 目录。
+
+1. 要创建验证证书，请输入以下命令：
 
     ```sh
     ./certGen.sh create_verification_certificate <verification-code>
     ```
 
-    Be sure to replace the `<verification-code>` placeholder with the **Verification Code** generated by the Azure portal.
+    请务必将 `<verification-code>` 占位符替换为由 Azure 门户生成的 **验证码**。
 
-    For example, the command run will look similar to the following:
+    例如，你运行的命令将如下所示：
 
     ```sh
     ./certGen.sh create_verification_certificate 49C900C30C78D916C46AE9D9C124E9CFFD5FCE124696FAEA
     ```
 
-    This generates a _verification certificate_ that is chained to the CA certificate.  The subject of the certificate is the verification code. The generated Verification Certificate named `verification-code.cert.pem` is located within the `./certs` directory of the Azure Cloud Shell.
+    这会生成一个链接到 CA _证书的验证证书_。证书的主题是验证码。生成的名为 `verification-code.cert.pem` 的验证证书位于 Azure Cloud Shell 的 `./certs` 目录中。
 
-1. Run the following command within the **Azure Cloud Shell** to download the verification certificate to your local machine so it can be uploaded to DPS.
+    下一步是将验证证书下载到本地计算机（类似于我们之前对根证书执行的操作），以便稍后将其上传到 DPS。
+
+1. 要将验证证书下载到本地计算机，请输入以下命令：
 
     ```sh
     download ~/certificates/certs/verification-code.cert.pem
     ```
 
-    [!NOTE] Depending on the web browser, you may be prompted to allow multiple downloads at this point.  If there appears to be no response to your download command, make sure there's not a prompt elsewhere on the screen asking for permission to allow the download.
+    > **注释**：根据 Web 浏览器的不同，此时系统可能会显示一条提示，让你确定是否允许多次下载。如果系统对你的下载命令无响应，请确保屏幕上的其他地方没有显示要求你提供允许下载权限的提示。
 
-12. Go back to the **Certificate Details** pane for the CA certificate within DPS.
+1. 返回 **“证书详细信息”** 窗格。
 
-13. For **Verification Certificate .pem or .cer file.**, select the newly created, and downloaded, verification certificate file, named `verification-code.cert.pem`.
+    我们曾提到过，在 DPS 中处理 CA 证书时，需要在 Azure 门户中保持打开此窗格。
 
-14. Click **Verify**.
+1. 在底部 **“证书详细信息”** 窗格的 **“验证证书 .pem 或 .cer 文件”** 右侧，单击 **“打开”**。
 
-15. Verify that in the **Certificates** pane, the **Status** for the certificate is now displayed as _Verified_.  You may need to use the **Refresh** button at the top of the pane (to the right of the **Add** button) to see this change.
+1. 在“打开文件”对话框中，导航到 downloads 文件夹，单击 **“verification-code.cert.pem”**，然后单击**“打开”**。
 
-## Exercise 3: Create Group Enrollment (x.509 Certificate) in DPS
+1. 在底部的 **“证书详细信息”** 窗格中，单击 **“验证”**。
 
-In this exercise, you will create a new individual enrollment for a device within the Device Provisioning Service (DPS) using _certificate attestation_.
+1. 在 **“证书”** 窗格中，验证证书的 **“状态”** 现在是否显示为_“已验证”_。
 
-### Task 1: Create the enrollment
+    你可能需要使用窗格顶部的 **“刷新”按钮**（位于 **“添加”** 按钮右侧）来查看此更改。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+### 练习 3：在 DPS 中创建组注册（X.509 证书）
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+在本练习中，你将在设备预配服务 (DPS) 中使用_“证书证明”_新建注册组。
 
-1. On your resource group tile, click **AZ-220-DPS-_{YOUR-ID}_**.
+#### 任务 1：创建注册
 
-1. On the left side of the Device Provisioning Service blade, under **Settings**, click **Manage enrollments**.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-1. At the top of the blade, click **Add enrollment group**.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. On the **Add Enrollment Group** blade, for **Group name**, enter "**simulated-devices**".
+1. 在资源组磁贴上，单击 **AZ-220-DPS-_{YOUR-ID}_**。
 
-1. Ensure that the **Attestation Type** is set to **Certificate**.
+1. 在“设备预配服务”边栏选项卡左侧的 **“设置”** 下，单击 **“管理注册”**。
 
-1. Ensure the **Certificate Type** field is set to **CA Certificate**.
+1. 在边栏选项卡顶部，单击 **“添加注册组”**。
 
-1. In the **Primary Certificate** dropdown, select the CA certificate that was uploaded to DPS previously, likely **root-ca-cert**.
+    回想一下，注册组基本上是可以通过自动预配进行注册的设备记录。
 
-1. Leave the **Secondary Certificate** dropdown set to **No certificate selected**.
+1. 在 **“添加注册组”** 边栏选项卡上的 **“组名”** 字段中，输入 **“simulated-devices”**
 
-2. Leave **Select how you want to assign devices to hubs** as **Evenly weighted distribution**.
-   
-   As you only have one IoT Hub associated with the enrollment, this setting is somewhat unimportant.  In larger environments where you have multiple distributed hubs, this setting will control how to choose what IoT Hub should receive this device enrollment.
+1. 确保将 **“认证类型”** 设置为 **“证书”**。
 
-3. Notice that the **AZ-220-HUB-_{YOUR-ID}_** IoT Hub is selected within the **Select the IoT hubs this device can be assigned to:** dropdown.
-   
-   This field specifies the IoT Hub(s) this device can be assigned to.
+1. 确保将 **“证书类型”** 字段设置为 **“CA 证书”**。
 
-4. Leave **Select how you want device data to be handled on re-provisioning** as the default value of **Re-provision and migrate data**.
+1. 在**“初级证书”**下拉菜单中，选择之前上传到 DPS 的 CA 证书，如 **root-ca-cert**。
 
-    This field gives you high-level control over the re-provisioning behavior, where the same device (as indicated through the same Registration ID) submits a later provisioning request after already being provisioned successfully at least once.
+1. 将 **“二级证书”** 下拉菜单保留设置为 **“未选择证书”**。
 
-2. Notice the **Select the IoT hubs this group can be assigned to** dropdown has the **AZ-220-HUB-*{YOUR-ID}*** IoT Hub selected. This will ensure when the device is provisioned, it gets added to this IoT Hub.
+    二级证书通常用于证书轮换，以容纳到期的证书或已泄露的证书。你可以在此处找到有关证书轮换的更多信息：[https://docs.microsoft.com/zh-cn/azure/iot-dps/how-to-roll-certificates](https://docs.microsoft.com/zh-cn/azure/iot-dps/how-to-roll-certificates)
 
-5. In the **Initial Device Twin State** field, modify the `properties.desired` JSON object to include a property named `telemetryDelay` with the value of `"1"`. This will be used by the Device to set the time delay for reading sensor telemetry and sending events to IoT Hub.
+1. 将 **“选择如何将设备分配到中心”** 保留设置为 **“均匀加权分配”**。
 
-    The final JSON will be like the following:
+   在具有多个分布式中心的大型环境中，此设置将控制如何选择应接收此设备注册的 IoT 中心。你将具备一个与本实验室中的注册相关的  IoT 中心，因此如何将设备分配给 IoT 中心在本实验室方案中并不真正适用。 
+
+1. 注意，在**“选择此设备可分配到的 IoT 中心：”**下拉菜单中选择了 **AZ-220-HUB-_{YOUR-ID}_ IoT 中心**。
+
+   此字段指定此设备可分配到的 IoT 中心。
+
+1. 将 **“选择在重新预配时如何处理设备数据”** 保留设置为默认值 **“重新预配并迁移数据”**。
+
+    通过此字段，可以对重新预配行为进行高级控制。所谓重新预配，是指同一设备（由同一注册 ID 指示）在成功预配至少一次之后再次提交配置请求的行为。
+
+1. 注意，在 **“选择此组可分配到的 IoT 中心”** 下拉菜单中选择了 **AZ-220-HUB-*{YOUR-ID}*** IoT 中心。
+
+    这将确保在预配设备时将其添加到此 IoT 中心。
+
+1. 在 **“初始设备孪生状态”** 字段中，按如下所示修改 JSON 对象：
 
     ```json
     {
@@ -282,89 +353,123 @@ In this exercise, you will create a new individual enrollment for a device withi
     }
     ```
 
-    This field contains JSON data that represents the initial configuration of desired properties for the device.
+    此 JSON 数据表示此注册组中所包含任何设备的设备孪生必需属性的初始配置。
 
-1. Leave **Enable entry** set to **Enable**.
+    设备将使用 `properties.desired.telemetryDelay` 属性来设置读取遥测数据并将其发送到 IoT 中心的时间延迟。
 
-    Generally, you'll want to enable new enrollment entries and keep them enabled.
+1. 将 **“启用输入”** 保留设置为 **“启用”**。
 
-2. At the top of the **Add Enrollment** blade, click **Save**.
+    通常需要启用新的注册项并保持启用状态。
 
-### Task 2: Validate the enrollment
+1. 在 **“添加注册”** 边栏选项卡顶部，单击 **“保存”**。
 
-1. In the **Manage enrollments** pane, click on the **Enrollment Groups** tab to view the list of enrollment groups in DPS.
+#### 任务 2：验证注册
 
-4. In the list, click on the **simulated-devices** enrollment group that was just created to view the enrollment group details.
+1. 验证是否显示 **“注册组”** 选项卡，并且列出了新注册组。
 
-5. In the **Enrollment Group Details** blade, locate the **Certificate Type**, and notice it's set to **CA Certificate**. Also, notice the **Primary Certificate** information is displayed, including the ability to update the certificates if needed.
+    如果未列出你的注册组，请单击边栏选项卡顶部的 **“刷新”**。
 
-6. Locate the **Initial Device Twin State**, and notice the JSON for the Device Twin Desired State contains the `telemetryDelay` property set to the value of `"1"`.
+1. 在“组名称”列表中，单击 **simulated-devices**。
 
-7.  Close the **Enrollment Group Details** pane.
+1. 在 **“注册组详细信息”** 边栏选项卡中，验证以下内容：
 
-## Exercise 4: Configure simulated device with x.509 certificate
+    * **“证书类型”** 设置为 **“CA 证书”**
+    * **“初级证书”** 设置为 **root-ca-cert**
+    * **“二级证书”** 设置为 **“未选择证书”**
+    * **“选择如何将设备分配到中心”** 设置为 **“均匀加权分配”**
+    * **“选择此组可分配到的 IoT 中心：”** 设置为 **AZ-220-HUB-{YOUR-ID}.azure-devices.net**
+    * **“初始设备孪生状态”** 包含设置为 `1` 值的 `telemetryDelay` 属性。
 
-In this exercise, you will configure a simulated device written in C# to connect to your Azure IoT Hub via your Device Provisioning Service (DPS) using an x.509 certificate. This exercise will also introduce you to the workflow within the **simulated device** source code within the `/LabFiles` directory, and how it works to authenticate with DPS and send messages to IoT Hub.
+1. 验证注册组设置后，请关闭 **“注册组详细信息”** 边栏选项卡。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+### 练习 4：使用 X.509 证书配置模拟设备
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+在本练习中，你将配置用 C# 编写的模拟设备，以使用 X.509 证书通过设备预配服务 (DPS) 连接到 Azure IoT 中心。在本练习中，你还将了解模拟设备**源代码中的工作流，以及如何向 DPS 进行身份验证并将消息发送到 IoT 中心。
 
-1. Open the Azure Cloud Shell by clicking the **Terminal** icon within the top header bar of the Azure portal, and select the **Bash** shell option.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-1. Within the **Azure Cloud Shell**, navigate to the `~/certificates` directory by running the following command:
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
+
+1. 在“Azure 门户”窗口顶部的工具栏中，单击 **“Cloud Shell”**。
+
+    验证在 Cloud Shell 的左上角是否选择了 **“Bash shell”**选项。
+
+1. 在 **Cloud Shell** 中，通过运行以下命令导航到 `~/certificates` 目录：
 
     ```sh
     cd ~/certificates
     ```
 
-    The `~/certificates` directory is where the `certGen.sh` helper scripts was downloaded to and used to generate the CA Certificate for DPS previously. This helper script will also be used to generate a device certificate within the CA Certificate chain.
+    `~/certificates` 目录是 `certGen.sh` 帮助程序脚本的下载目录。你之前使用它们来生成了 DPS 的 CA 证书。此帮助程序脚本还将用于在 CA 证书链中生成设备证书。
 
-1. Run the following command to generate an _x.509 device certificate_ within the CA certificate chain with the device name of `simulated-device1`. This certificate will generate a leaf device x.509 certificate for your simulated device. This certificate will be signed by the CA certificate generated previously, and will be used to authenticate the device with the Device Provisioning Service (DPS).
+1. 要在 CA 证书链中生成 _X.509 设备证书_，请输入以下命令：
 
     ```sh
     ./certGen.sh create_device_certificate simulated-device1
     ```
 
-    Notice the device id of `simulated-device1` is passed to the `create_device_certificate` command of the `certGen.sh` script. This command will create a new x.509 certificate that's signed by the CA certificate and has the specified device id set within the _common name_, or `CN=`, value of the device certificate.
+    此命令将创建一个新的 X.509 证书，该证书由先前生成的 CA 证书签名。注意，设备 ID (`simulated-device1`) 已传递到 `certGen.sh` 脚本的 `create_device_certificate` 命令。该设备 ID 将在设备证书的_公用名称_（即 `CN=`）值中设置。此证书将为你的模拟设备生成一个叶设备 X.509 证书，并且设备将使用此证书向设备预配服务 (DPS) 进行身份验证。
 
-    Once the `create_device_certificate` command has completed, the generated x.509 device certificate will be named `new-device.cert.pfx`, and will be located within the `/certs` sub-directory.
+    完成 `create_device_certificate` 命令后，生成的 X.509 设备证书将命名为 `new-device.cert.pfx`，并将存放在 `/certs` 子目录中。
 
-    > [!NOTE] This command overwrites the existing certificate. If you want to create a certificate for multiple devices, ensure you copy the `new-device.cert.pfx` each time.
+    > **注释**：此命令将覆盖 `/certs` 子目录中的所有现有设备证书。如果要为多个设备创建证书，请确保每次运行命令时都保存 `new-device.cert.pfx` 的副本。
 
-1. Run the following command to download the generated x.509 device certificate from the Cloud Shell to your local machine:
+1. 要将生成的 X.509 设备证书从 Cloud Shell 下载到本地计算机，请输入以下命令：
 
     ```sh
     download ~/certificates/certs/new-device.cert.pfx
     ```
 
-    The simulated device will be configured to use this x.509 device certificate to authenticate with the Device Provisioning Service.
+    将模拟设备配置为使用此 X.509 设备证书向设备预配服务进行身份验证。
 
-1. Within the Azure portal, navigate to the **Device Provisioning Service** blade, and the **Overview** pane.
+1. 在 Azure 门户中，导航到 **“设备预配服务”** 边栏选项卡和 **“概述”** 窗格。
 
-1. Within the **Overview** pane, copy the **ID Scope** for the Device Provisioning Service, and save it for reference later.  (There is a copy button to the right of the value that will appear when you hover over the value.)
+1. 在 **“概述”** 窗格中，复制设备预配服务的 **“ID 范围”**，并保存供以后参考。
 
-    The **ID Scope** will be similar to this value: `0ne0004E52G`
+    将鼠标悬停在值上方时，该值的右侧将显示一个“复制”按钮。
 
-1. Copy the downloaded `new-device.cert.pfx` x.509 device certificate file to the `/LabFiles` directory; within the root directory along-side the `Program.cs` file. The **simulated device** project will need to access this certificate file when authenticating to the Device Provisioning Service.
+    **ID 范围**类似于此值：`0ne0004E52G`
 
-    After copied, the certificate file will be located in the following location:
+1. 打开 Windows 文件资源管理器，然后导航到 `new-device.cert.pfx` 的下载文件夹。
 
-    ```text
-    /LabFiles/new-device.cert.pfx
-    ```
+1. 使用文件资源管理器创建 `new-device.cert.pfx` 文件的副本。
 
-1. Using **Visual Studio Code**, open the `/LabFiles` folder.
+1. 在文件资源管理器中，导航到实验室 6（在 DPS 中自动注册设备）的 Starter 文件夹。
 
-1. Open the `SimulatedDevice.csproj` file.
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
 
-1. Within the `SimulatedDevice.csproj` file, ensure the following block of XML exists within the `<ItemGroup>` tag of the file. This configuration ensures that the `new-device.cert.pfx` certificate file is copied to the build folder when the C# code is compiled, and made available for the program to access when it executes.
+    * Allfiles
+      * 实验室
+          * 06 - 在 DPS 中自动注册设备
+            * Starter
+
+1. 将 `new-device.cert.pfx` 文件粘贴到 Starter 文件夹中。
+
+    实验室 6 Starter 文件夹的根目录中包含 `Program.cs` 文件。向设备预配服务进行身份验证时，**模拟设备**项目将需要访问此证书文件。
+
+1. 打开 **Visual Studio Code**。
+
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**
+
+1. 在“打开文件夹”对话框中，导航到 **06-Automatic Enrollment of Devices in DPS** 文件夹。
+
+1. 单击 **Starter**，然后单击 **“选择文件夹”**。
+
+    你应该会在 Visual Studio Code 的资源管理器窗格中看到以下文件：
+
+    * new-device.cert.pfx
+    * Program.cs
+    * SimulatedDevice.csproj
+
+1. 打开 `SimulatedDevice.csproj` 文件。
+
+1. 在 `SimulatedDevice.csproj` 文件中，确保 `<ItemGroup>` 标记包含以下内容： 
 
     ```xml
         <None Update="new-device.cert.pfx" CopyToOutputDirectory="PreserveNewest" />
     ```
 
-    If it's not there, then paste it in before the closing `</Project>` tag. The end of the file should look similar to the following:
+    如果不包含，请添加。完成后，`<ItemGroup>` 标记应如下所示：
 
     ```xml
             <ItemGroup>
@@ -377,84 +482,120 @@ In this exercise, you will configure a simulated device written in C# to connect
         </Project>
     ```
 
-    The exact `PackageReference` entries may be a bit different, depending on the exact version of the lab code you are using.
+    这种配置可确保在编译 C# 代码时将 `new-device.cert.pfx` 证书文件复制到版本文件夹，并在程序执行时供其访问。
 
-1. Open the `Program.cs` file.
+    > **注释**：确切的 `PackageReference` 条目可能有所不同，具体取决于你使用的实验室代码的确切版本。
 
-1. Locate the `GlobalDeviceEndpoint` variable, and notice it's value is set to `global.azure-devices-provisioning.net`. This is the **Global Device Endpoint** for the Azure Device Provisioning Service (DPS) within the Public Azure Cloud. All devices connecting to Azure DPS will be configured with this Global Device Endpoint DNS name.
+1. 在 Visual Studio Code 的 **“文件”** 菜单上，单击 **“保存”**。
+
+1. 打开 `Program.cs` 文件。
+
+1. 找到 `GlobalDeviceEndpoint` 变量，并注意其值设置为 Azure 设备预配服务的全局设备终结点 (`global.azure-devices-provisioning.net`)。 
+
+    在公共 Azure 云中，`global.azure-devices-provisioning.net` 是设备预配服务 (DPS) 的全局设备终结点。连接到 Azure DPS 的所有设备都将使用此全局设备终结点 DNS 名称进行配置。你应该会看到如下所示代码：
 
     ```csharp
     private const string GlobalDeviceEndpoint = "global.azure-devices-provisioning.net";
     ```
 
-1. Locate the `dpsIdScope` variable, and replace the value with the **ID Scope** of the Device Provisioning Service.
+1. 找到 `dpsIdScope` 变量，并用你从设备预配服务的“概述”窗格中复制的 **“ID 范围”** 替换已分配的值。
 
-   ```csharp
-   private static string dpsIdScope = "<DPS-ID-Scope>";
-   ```
+    当你更新完代码后，它应该类似于：
 
-2. Locate the `s_certificateFileName` variable. Notice the value to this variable is set to `new-device.cert.pfx`. This is the name of the x.509 device certificate file that was copied to the `/LabFiles` directory after it was previously generated using the `certGen.sh` helper script within the Cloud Shell. This variable tells the simulated device program code what file contains the x.509 device certificate to use when authenticating with the Device Provisioning Service.
+    ```csharp
+    private static string dpsIdScope = "0ne000CBD6C";
+    ```
 
-3. Locate the `s_certificatePassword` variable. This variable contains the password for the x.509 device certificate. Notice that it's already set to `1234`, as this is the default password used by the `certGen.sh` helper script when generating the x.509 certificates.
+1. 找到 `s_certificateFileName` 变量，并注意其值设置为你生成的设备证书文件 (`new-device.cert.pfx`)。
 
-    > [!NOTE] For the purpose of this unit, the password is hard coded. In a _production_ device, the password will need to be stored in a more secure manner, such as in an Azure Key Vault. Additionally, the certificate file (PFX) should be stored securely on a production device using a Hardware Security Module (HSM).
+    `new-device.cert.pfx` 文件是你在 Cloud Shell 中使用 `certGen.sh` 帮助程序脚本生成的 X.509 设备证书文件。此变量告知设备代码哪个文件包含 X.509 设备证书，设备将使用该证书向设备预配服务进行身份验证。
+
+1. 找到 `s_certificatePassword` 变量，注意此变量的值已设置为 `certGen.sh` 脚本的默认密码。
+
+    `s_certificatePassword` 变量包含 X.509 设备证书的密码。它设置为 `1234`，因为这是 `certGen.sh` 帮助程序脚本用于生成 X.509 证书的默认密码。
+
+    > **注释**：在本实验室中，密码是硬编码的。在 _生产_ 方案中，需要以更安全的方式存储密码，例如存储在 Azure 密钥保管库中。此外，证书文件 (PFX) 应该使用硬件安全模块 (HSM) 安全地存储在生产设备上。
     >
-    > An HSM (Hardware Security Module), is used for secure, hardware-based storage of device secrets, and is the most secure form of secret storage. Both X.509 certificates and SAS tokens can be stored in the HSM. HSMs can be used with all attestation mechanisms the provisioning service supports.
+    > HSM（硬件安全模块）用于安全的、基于硬件的设备机密存储，是最安全的机密存储形式。X.509 证书和 SAS 令牌都可以存储在 HSM 中。HSM 可以与预配服务支持的所有证明机制一起使用。
 
-4. Locate the `public static int Main` method. This is the execution entry for the simulated device.
+1. 找到 `public static int Main` 方法，然后花一分钟时间查看代码。 
 
-    This method contains code that initiates the use of the x.509 device certificate by calling the `LoadProvisioningCertificate` method to load the certificate. The `LoadProvisioningCertificate` method returns an `X509Certificate2` object that contains the x.509 device certificate from the `new-device.cert.pfx` file.
+    Main 方法是模拟设备应用的入口点。注意，它要做的第一件事是调用 `LoadProvisioningCertificate` 方法，该方法返回一个 `X509Certificate2` 对象。
 
-5. Locate the `LoadProvisioningCertificate` method, and review the necessary code to load an x.509 certificate from the `new-device.cert.pfx` file.
+1. 向下滚动并找到 `LoadProvisioningCertificate` 方法，然后花一分钟时间查看用于生成 `X509Certificate2` 对象的代码。
 
-6. Notice the `public static int Main` method also contains code that initiates a `security` `SecurityProviderX509Certificate` object for the x.509 Device Certificate. It also creates a `transport` `ProvisioningTransportHandlerAmqp` object that defines the simulated device will be using AMQP as the communications protocol when connecting to Azure IoT Hub.
+    注意，`LoadProvisioningCertificate` 使用 `s_certificateFileName` 来加载 X.509 设备证书（来自 `new-device.cert.pfx` 文件）。
 
-7. Notice the `ProvisioningDeviceClient.Create` method is passed the `security` and `transport` objects, as well as the DPS ID scope and DPS global device endpoint, that will be used to register the device with the Device Provisioning Service.
+1. 向上滚动到 `public static int Main` 方法，然后花一点时间查看嵌套的 `using` 语句中的代码。
 
-8. Notice the `ProvisioningDeviceLogic` object is instantiated by passing it the `ProvisioningDeviceClient` (`provClient`) and `security` objects.
+    注意，此代码为 X.509 设备证书启动了一个 `security` `SecurityProviderX509Certificate` 对象，并创建了一个 `transport` `ProvisioningTransportHandlerAmqp` 对象，该对象定义了模拟设备使用 AMQP 作为通信协议连接到 Azure IoT 中心。
 
-    The `ProvisioningDeviceLogic` is a class define within the simulated device that contains code for the device logic. It contains code for running the device by reading from the simulated device sensors, and sending device-to-cloud messages to Azure IoT Hub. It will also be modified later to contain code that updates the device according to changes to device twin desired properties that are sent to the device from the cloud.
+    注意，`security` 和 `transport` 对象以及 DPS ID 范围和 DPS 全局设备终结点都已传递到 `ProvisioningDeviceClient.Create` 方法。ProvisioningDeviceClient 对象 `provClient` 将用于向设备预配服务注册设备。
 
-9. Locate the `ProvisioningDeviceLogic.RunAsync` method.
+    注意，`ProvisioningDeviceLogic` 是通过向其传递 `provClient` 和 `security` 对象来实例化的。`ProvisioningDeviceLogic` 类用于定义设备（模拟设备）的逻辑。它包含一些代码，这些代码通过从模拟设备传感器读取设备到云的消息并将这些消息发送到 Azure IoT 中心来模拟正在运行的设备。稍后还会将其修改为包含以下代码：根据从云发送到设备的设备孪生必需属性的更改来更新设备。
 
-10. Notice the code that calls the `ProvisioningDeviceClient.RegisterAsync` method. This method Registers the device using the Device Provisioning Service and assigns it to an Azure IoT Hub.
+1. 向下滚动到 `ProvisioningDeviceLogic` 类，然后找到 `RunAsync` 方法。
+
+    我们将花一些时间来回顾 `RunAsync` 方法，并指出一些关键点。
+
+1. 在 `RunAsync` 方法中，注意包含 ProvisioningDeviceClient.RegisterAsync 方法的代码（如下所示）。
 
     ```csharp
     DeviceRegistrationResult result = await _provClient.RegisterAsync().ConfigureAwait(false);
     ```
 
-11. Notice the code that instantiates a new `DeviceAuthenticationWithX509Certificate` object. This is a Device Authentication object that will be used to authenticate the simulated device to Azure IoT Hub using the x.509 Device Certificate. The constructor is being passed the device ID for the device that was registered in DPS, as well as the x.509 device certificate to authenticate the device.
+    RegisterAsync 方法用于向设备预配服务注册设备，并将其分配给 Azure IoT 中心。
+
+1. 注意实例化新 `DeviceAuthenticationWithX509Certificate` 对象的代码（如下所示）。 
 
     ```csharp
     var auth = new DeviceAuthenticationWithX509Certificate(result.DeviceId, (_security as SecurityProviderX509).GetAuthenticationCertificate());
     ```
 
-12. Notice the code that calls the `DeviceClient.Create` method to create a new IoT `DeviceClient` object that is used to communicate with the Azure IoT Hub service.
+    这是一个设备身份验证对象，用于模拟设备通过使用 X.509 设备证书向 Azure IoT 中心进行身份验证。正在向构造函数传递在 DPS 中注册的设备的设备 ID，以及设备用于进行身份验证的 X.509 设备证书。
+
+1. 注意调用 `DeviceClient.Create` 方法的代码。
 
     ```csharp
     using (iotClient = DeviceClient.Create(result.AssignedHub, auth, TransportType.Amqp))
     {
     ```
 
-    Notice this code also passes the value of `TransportType.Amqp`, telling the `DeviceClient` to communicate with the Azure IoT Hub using the AMQP protocol. Alternatively, Azure IoT Hub can be connected to and communicated with using the MQTT or HTTP protocols, depending on network architecture, device requirements, etc.
+    `DeviceClient.Create` 方法用于创建新的 IoT `DeviceClient` 对象，该对象将用于与 Azure IoT 中心服务进行通信。注意，此代码传递 `TransportType.Amqp` 的值，以告知 `DeviceClient` 使用 AMQP 协议与 Azure IoT 中心进行通信。也可以使用 MQTT 或 HTTP 协议连接到 Azure IoT 中心并与之通信，具体取决于网络体系结构、设备要求等。
 
-13. Notice the call to the `SendDeviceToCloudMessagesAsync` method. This is a method defined within the simulated device code, and is where the device logic is located to read from simulated sensors and to send device-to-cloud messages to Azure IoT Hub. This method also contains a loop that continues to execute while the simulated device is running.
+1. 注意对 `SendDeviceToCloudMessagesAsync` 方法的调用。 
 
     ```csharp
     await SendDeviceToCloudMessagesAsync(iotClient);
     ```
 
-14. Notice the call to the `DeviceClient.CloseAsync` method. This method closes the `DeviceClient` object, thus closing the connection with Azure IoT Hub. This is the last line of code executed when the simulated device shuts down.
+    `SendDeviceToCloudMessagesAsync` 方法是一个单独的方法，在代码中进一步定义。此方法包含用于从模拟传感器读取设备到云的消息并将这些消息发送到 Azure IoT 中心的代码。此方法还包含一个循环，该循环在模拟设备运行时继续执行。
+
+1. 同样在 RunAsync 方法中，注意对 `DeviceClient.CloseAsync` 方法的调用。
 
     ```csharp
     await iotClient.CloseAsync().ConfigureAwait(false);
     ```
 
-15. Locate the `SendDeviceToCloudMessagesAsync` method.
+    此方法关闭 `DeviceClient` 对象，从而关闭与 Azure IoT 中心的连接。这是模拟设备关闭时执行的最后一行代码。
 
-16. Notice the code within the `SendDeviceToCloudMessagesAsync` method contains a `while` loop that has code to generate simulated sensor readings, and then send that data to Azure IoT Hub in a device-to-cloud message.
+1. 向下滚动到 `SendDeviceToCloudMessagesAsync` 方法。
 
-17. Next, notice the simulated sensor readings are combined into a JSON object using the following code:
+    同样，我们会指出一些关键细节。
+
+1. 注意生成模拟传感器读取操作的代码（如下所示）。
+
+    ```csharp
+    double currentTemperature = minTemperature + rand.NextDouble() * 15;
+    double currentHumidity = minHumidity + rand.NextDouble() * 20;
+    double currentPressure = minPressure + rand.NextDouble() * 12;
+    double currentLatitude = minLatitude + rand.NextDouble() * 0.5;
+    double currentLongitude = minLongitude + rand.NextDouble() * 0.5;
+    ```
+
+    对于每种传感器类型，在 while 循环内将随机值添加到最小传感器值。最小值在循环外初始化。这将创建一系列传感器值读数，这些读数可以报告给你的 IoT 中心。
+
+1. 请注意用于将传感器读数组合成 JSON 对象的代码：
 
     ```csharp
         var telemetryDataPoint = new
@@ -467,55 +608,69 @@ In this exercise, you will configure a simulated device written in C# to connect
         };
         var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
         var message = new Message(Encoding.ASCII.GetBytes(messageString));
-
     ```
 
-18. Moving on, notice that there is a line of code that adds a `temperatureAlert` property to the device-to-cloud `Message`. The value of the property is being set to a `boolean` value representing whether the _temperature_ sensor reading is greater than 30.
+    IoT 中心需要正确格式化的消息。
+
+1. 注意，这行代码将 `temperatureAlert` 属性添加到了设备到云的 `Message` 中。
 
     ```csharp
     message.Properties.Add("temperatureAlert", (currentTemperature > 30) ? "true" : "false");
     ```
 
-    This code is a simple example of how to add properties to the `Message` object before sending it to the Azure IoT Hub. This can be used to add additional metadata to the messages that are being send, in addition to the message body content.
+    `temperatureAlert` 属性的值被设置为 `boolean` 值，代表是否 _温度_ 传感器读数大于 30。由于我们生成的温度读数范围为 20 到 35，因此大约三分之一时间的 temperatureAlert 应该为“true”。 
 
-19. After that is the call to the `DeviceClient.SendEventAsync` method. This method accepts the `Message` to send as a parameter, then does the work of sending the device-to-cloud message to Azure IoT Hub.
+    这段代码是一个简单的示例，说明了如何在将属性发送到 Azure IoT 中心之前向`Message`对象添加属性。除了消息正文内容之外，它还可用于向正在发送的消息中添加其他元数据。
+
+1. 注意对 `DeviceClient.SendEventAsync` 方法的调用。
 
     ```csharp
     await deviceClient.SendEventAsync(message);
     ```
 
-20. Notice the last line of code within the `SendDeviceToCloudMessagesAsync` method, that performs a simply delay using the `_telemetryDelay` variable to define how many seconds to wait until sending the next simulated sensor reading.
+    `SendEventAsync` 方法接受我们生成的 `message` 作为参数发送，然后执行将设备到云的消息发送到 Azure IoT 中心的工作。
 
-## Exercise 5: Handle device twin desired property Changes
+1. 请注意对 `Delay` 方法的调用，该方法用于设置设备到云遥测消息之间的时间。
 
-In this exercise, you will modify the simulated device source code to include an event handler to update device configurations based on device twin desired property changes sent to the device from Azure IoT Hub.
+    这个简单的延迟使用 `_telemetryDelay` 变量定义发送下一个模拟传感器读数之前要等待的秒数。在下一个练习中，我们将使用设备孪生属性来控制延迟时间。
 
-Device twins are JSON documents that store device state information including metadata, configurations, and conditions. Azure IoT Hub maintains a device twin for each device that you connect to IoT Hub.
+### 练习 5：处理设备孪生必需属性的更改
 
-The Device Provisioning Service (DPS) contains the initial device twin desired properties for devices that are registered using Group Enrollment. Once the devices are registered they are created within IoT Hub using this initial device twin configuration from DPS. After registration, the Azure IoT Hub maintains a device twin (and its properties) for each device within the IoT Hub Device Registry.
+设备孪生是存储设备状态信息（包括元数据、配置和条件）的 JSON 文档。Azure IoT 中心为你连接到 IoT 中心的每个设备维护一个设备孪生。
 
-When the device twin desired properties are updated for a device within Azure IoT Hub, the desired changes are sent to the IoT Device using the `DesiredPropertyUpdateCallback` event using the C# SDK. Handling this event within device code enables the devices configuration and properties to be updated as desired by easily managing the Device Twin state for the device within Azure IoT Hub.
+设备预配服务 (DPS) 包含使用组注册所注册设备的初始设备孪生所需属性。设备注册后，将使用 DPS 的初始设备孪生配置在 IoT 中心内进行创建。注册后，Azure IoT 中心为 IoT 中心设备注册表中的每个设备维护一个设备孪生（及其属性）。
 
-This set of steps will be very similar to steps in earlier labs for working with a simulated device, because the concepts and processes are the same.  The method used for authentication of the provisioning process doesn't change the handing of device twin property changes once the device is provisioned. 
+当为 Azure IoT 中心内的设备更新了设备孪生所需属性时，所需的更改将使用 IoT SDK（在本例中为 C# SDK）中包含的 `DesiredPropertyUpdateCallback` 事件发送到 IoT 设备。通过在设备代码中处理此事件，可以通过轻松管理设备的设备孪生状态（使用 IoT 中心提供访问权限）来根据需要更新设备的配置和属性。
 
-1. Using **Visual Studio Code**, open the `/LabFiles` folder if it's not still open.
+在本练习中，你将修改模拟设备源代码，以包括事件处理程序，该事件处理程序将根据从 Azure IoT 中心发送到设备的设备孪生所需属性更改来更新设备配置。
 
-1. Open the `Program.cs` file if it's not still open.
+> **注释**：由于概念和过程相同，因此在此处使用的步骤集与使用模拟设备的早期实验室中的步骤非常相似。  在预配设备后，预配过程中用于身份验证的方法不会更改设备孪生属性更改的处理。
 
-1. Locate the `RunAsync` method.
-   This is the method that connects the simulated device to Azure IoT Hub using a `DeviceClient` object. You will be adding code immediately after the device connects to Azure IoT Hub that integrates an `DesiredPropertyUpdateCallback` event handler for the device to receive to device twin desired property changes.
+1. 使用 **Visual Studio Code**， 打开实验室 6 的 **启动程序** 文件夹。
 
-2. Locate the `// TODO 1` comment within the **RunAsync** method, and paste in the following code that calls the `SetDesiredPropertyUpdateCallbackAsync` method to setup the `DesiredPropertyUpdateCallback` event handler to receive device twin desired property changes.
+    如果你已从上一个练习中打开代码项目，请继续使用相同的代码文件。
+
+1. 打开 `Program.cs` 文件。
+
+1. 找到 `ProvisioningDeviceLogic` 类，然后向下滚动至 `RunAsync` 方法。
+
+   这是使用 `DeviceClient` 对象将模拟设备连接到 Azure IoT 中心的方法。你将添加代码，该代码集成了设备的 `DesiredPropertyUpdateCallback` 事件处理程序，以便接收设备孪生所需的属性更改。设备连接到 Azure IoT 中心后，此代码将立即运行。 
+
+1. 找到 `// TODO 1` 注释，然后粘贴到以下代码中：
 
     ```csharp
-    // TODO 1: Setup OnDesiredPropertyChanged Event Handling to receive Desired Properties changes
+    // TODO 1: 设置 OnDesiredPropertyChanged 事件处理以接收所需的属性更改
     Console.WriteLine("Connecting SetDesiredPropertyUpdateCallbackAsync event handler...");
     await iotClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, null).ConfigureAwait(false);
     ```
 
-    Notice this code is configuring the `DeviceClient` to call a method named `OnDesiredPropertyChanged` when device twin property change events are received.
+    `iotClient` 对象是 `DeviceClient` 的实例。`SetDesiredPropertyUpdateCallbackAsync` 方法用于设置 `DesiredPropertyUpdateCallback` 事件处理程序，以接收设备孪生所需的属性更改。当接收到设备孪生属性更改事件时，此代码将 `iotClient` 配置为调用名为 `OnDesiredPropertyChanged` 的方法。
 
-3. Now that the `SetDesiredPropertyUpdateCallbackAsync` method was used to setup the event handler, the method named `OnDesiredPropertyChanged` that it's configured to call needs to be defined.  To define the `OnDesiredPropertyChanged` method, paste in the following code to the `ProvisioningDeviceLogic` class, below the `RunAsync` method:
+    现在已经有了 `SetDesiredPropertyUpdateCallbackAsync` 方法来设置事件处理程序，我们需要创建它调用的 `OnDesiredPropertyChanged` 方法。
+
+1. 将光标置于 `RunAsync` 方法下方的空白代码行上。
+
+1. 要定义 `OnDesiredPropertyChanged` 方法，请粘贴以下代码：
 
     ```csharp
         private async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
@@ -523,7 +678,7 @@ This set of steps will be very similar to steps in earlier labs for working with
             Console.WriteLine("Desired Twin Property Changed:");
             Console.WriteLine($"{desiredProperties.ToJson()}");
 
-            // Read the desired Twin Properties
+            // 读取所需孪生属性
             if (desiredProperties.Contains("telemetryDelay"))
             {
                 string desiredTelemetryDelay = desiredProperties["telemetryDelay"];
@@ -531,11 +686,11 @@ This set of steps will be very similar to steps in earlier labs for working with
                 {
                     this._telemetryDelay = int.Parse(desiredTelemetryDelay);
                 }
-                // if desired telemetryDelay is null or unspecified, don't change it
+                // 如果所需 TelemetryDelay 为 null 或未指定，请勿更改
             }
 
 
-            // Report Twin Properties
+            // 报告孪生属性
             var reportedProperties = new TwinCollection();
             reportedProperties["telemetryDelay"] = this._telemetryDelay;
             await iotClient.UpdateReportedPropertiesAsync(reportedProperties).ConfigureAwait(false);
@@ -544,43 +699,59 @@ This set of steps will be very similar to steps in earlier labs for working with
         }
     ```
 
-    Notice the first block of code within the `OnDesiredPropertyChanged` event handler method that reads the `telemetryDelay` property value from the device twin desired properties. This code also take the value specified and modifies the `this._telemetryDelay` variable with the desired value to reconfigure the delay time between sending simulated sensor readings to Azure IoT Hub. Remember, this `this._telemetryDelay` variable is used within the `Task.Delay` call inside the `while` loop of the `SendDeviceToCloudMessagesAsync` method.
+    注意，`OnDesiredPropertyChanged` 事件处理程序接受类型为 `TwinCollection` 的 `desiredProperties` 参数。 
 
-    Also notice the second block of the code within the `OnDesiredPropertyChanged` event handler method that reports the current state of the device to Azure IoT Hub. This code calls the `DeviceClient.UpdateReportedPropertiesAsync` method and passes it a **TwinCollection** method that contains the current state of the device properties. This code is how the device reports back to IoT Hub that it received the device twin desired properties changed event, and has now updates it's configurations accordingly. It also reports what the properties are now set to, in case they would be different than the desired state received, so that IoT Hub can maintain an accurate Device Twin that reflects the state of the device.
+    注意，`if` `desiredProperties` 参数的值包含 `telemetryDelay`（设备孪生所需属性），则代码会将设备孪生属性的值分配给 `this._telemetryDelay` 变量。你可能还记得，`SendDeviceToCloudMessagesAsync` 方法包括一个 `Task.Delay` 调用，该调用使用 `this._telemetryDelay` 变量来设置发送到 IoT 中心的消息之间的延迟时间。
 
-1. Now that the device can receive updates to the device twin desired properties from Azure IoT Hub, it also needs to be coded to configure it's initial setup when the simulated device begins execution. To do this the device will need to load the current device twin desired properties from Azure IoT Hub, and configure itself accordingly. Locate the `// TODO 2` comment within the `RunAsync` method, and paste in the following code that loads the current device twin desired properties from Azure IoT Hub for the device, and then uses the same `OnDesiredPropertyChanged` method defined previously to configure the device accordingly.
+    请注意，下一个代码块用于将设备的当前状态报告回 Azure IoT 中心。这段代码调用 `DeviceClient.UpdateReportedPropertiesAsync` 方法并将其传递给 **TwinCollection**，其中包含设备属性的当前状态。这是设备向 IoT 中心报告的方式，它已收到设备孪生期望属性更改事件，并且现在已相应更新其配置。请注意，它报告的是现在设置的属性，而不是所需属性的回显。如果从设备发送的报告属性不同于设备接收到的所需状态，则 IoT 中心将保持反映设备状态的准确设备孪生。
+
+    既然设备可以从 Azure IoT 中心接收对设备孪生所需属性的更新，则还需要对其进行编码以在设备启动时配置其初始设置。为此，设备将需要从 Azure IoT 中心加载当前设备孪生所需属性，并进行相应的配置。 
+
+1. 通过 `RunAsync` 方法找到 `// TODO 2` 注释。
+
+1. 要实现在设备启动时运行 `OnDesiredPropertyChanged` 方法的代码，请输入以下代码：
 
     ```csharp
-    // TODO 2: Load Device Twin Properties since device is just starting up
+    // 待办事项 2：由于设备刚刚启动，请加载设备孪生属性
     Console.WriteLine("Loading Device Twin Properties...");
     var twin = await iotClient.GetTwinAsync().ConfigureAwait(false);
-    // Use OnDesiredPropertyChanged event handler to set the loaded Device Twin Properties (re-use!)
+    //使用 OnDesiredPropertyChanged 事件处理程序设置加载的设备孪生属性（重用！）
     await OnDesiredPropertyChanged(twin.Properties.Desired, null);
     ```
 
-    Notice the call to the `DeviceClient.GetTwinAsync` method. This method can be used by the device to retrieve the current Device Twin state at any time. It's used in this case so the device can configure itself to match the device twin desired properties when the device first starts execution.
+    注意对 `DeviceClient.GetTwinAsync` 方法的调用。设备可以随时使用此方法来检索当前的“设备孪生”状态。在这种情况下使用它，这样当设备第一次开始执行时，设备可以配置自己以匹配设备孪生的所需属性。
 
-    In this case, the `OnDesiredPropertyChanged` event handler method is being reused to keep the configuration of the `telemetryDelay` property based on the device twin desired properties to a single place. This will help make the code easier to maintain over time.
+    在这种情况下，将重用 `OnDesiredPropertyChanged` 事件处理程序方法，以将基于设备孪生所需属性的 `telemetryDelay` 属性配置保留在一个位置。随着时间的推移，这将有助于使代码更易于维护。
 
-## Exercise 6: Test the Simulated Device
+1. 在 Visual Studio Code 的 **“文件”** 菜单上，单击 **“保存”**。
 
-In this exercise, you will run the simulated device. When the device is started for the first time, it will connect to the Device Provisioning Service (DPS) and automatically be enrolled using the configured group enrollment. Once enrolled into the DPS group enrollment, the device will be automatically registered within the Azure IoT Hub device registry. Once enrolled and registered, the device will begin communicating with Azure IoT Hub securely using the configured x.509 certificate authentication.
+### 练习 6：测试模拟设备
 
-### Task 1: Build and run the device
+在本练习中，你将运行模拟设备。首次启动设备时，它将连接到设备预配服务 (DPS)，并使用配置的组注册自动注册。注册 DPS 组注册后，设备将自动在 Azure IoT 中心设备注册表中注册。注册并登记后，设备将开始使用配置的 X.509 证书身份验证与 Azure IoT 中心安全通信。
 
-1. Using **Visual Studio Code**, open the `/LabFiles` folder if it's not still open.
+#### 任务 1：生成并运行设备
 
-1. Within **Visual Studio Code**, click the **View** menu, then select **Terminal** to open the Visual Studio Code Terminal window.
+1. 使用 **Visual Studio Code**， 打开实验室 6 的 **启动程序** 文件夹。
 
-1. Navigate to `/LabFiles` directory within the **Terminal**.
+    如果你已从上一个练习中打开代码项目，请继续使用相同的代码文件。
 
-1. Build and execute the **SimulatedDevice** project by running the `dotnet run` command.
+1. 在 Visual Studio Code 的 **视图** 菜单上，单击 **“终端”**。
+
+    这将在 Visual Studio Code 窗口的底部打开集成终端。
+
+1. 在终端命令提示符下，确保将当前目录路径设置为 `/Starter` 文件夹。
+
+    你应该会看到以下类似内容：
+
+    `Allfiles\Labs\06-Automatic Enrollment of Devices in DPS\Starter>`
+
+1. 要生成并运行 **“SimulatedDevice”** 项目，请输入以下命令：
 
     ```cmd/sh
     dotnet run
     ```
 
-    > [!NOTE] When running `dotnet run` for the simulated device, if a `ProvisioningTransportException` exception is displayed, the most common cause is an _Invalid certificate_ error. If this happens, ensure the CA Certificate in DPS, and the Device Certificate for the simulated device application are configured correctly.
+    > **注释**：  在模拟设备上运行 `dotnet run` 时，如果显示 `ProvisioningTransportException` 异常，则最常见的原因是_“证书无效”_错误。如果发生这种情况，请确保正确配置了 DPS 中的 CA 证书和模拟设备应用程序的设备证书。
     >
     > ```text
     > localmachine:LabFiles User$ dotnet run
@@ -596,7 +767,13 @@ In this exercise, you will run the simulated device. When the device is started 
     > ...
     > ```
 
-1. When the simulated device application runs, the **Terminal** will display the Console output from the app. Notice the x.509 certificate was loaded, the device was registered with the Device Provisioning Service, it was assigned to connect to the **AZ-220-HUB-_{YOUR-ID}_** IoT Hub, and the device twin desired properties are loaded.
+1. 注意“终端”窗口中显示的模拟设备应用的控制台输出。
+
+    当模拟设备应用程序运行时， **终端**将显示应用的控制台输出。 
+
+    向上滚动到“终端”窗口中显示的信息的顶部。
+
+    请注意，X.509 证书已加载，设备已在设备预配服务中注册，设备已分配连接到 **AZ-220-HUB-_{YOUR-ID}_** IoT 中心，并且已加载设备孪生所需属性。
 
     ```text
     localmachine:LabFiles User$ dotnet run
@@ -617,11 +794,9 @@ In this exercise, you will run the simulated device. When the device is started 
     Start reading and sending device telemetry...
     ```
 
-    To review the source code for the simulated device, open the `/LabFiles/Program.cs` source code file. Look for several `Console.WriteLine` statements that are used to output the messages seen to the console.
+    要查看模拟设备的源代码，请打开 `Program.cs` 源代码文件。查找几个 `Console.WriteLine` 语句，这些语句用于将看到的消息输出到控制台。
 
-1. Once the simulated device starts executing, it will begin sending simulated sensor telemetry messages to Azure IoT Hub. Notice the output to the console that displays the JSON of the sensor readings that are being sent to Azure IoT Hub.
-
-    Also, notice the delay, as defined by the `telemetryDelay` Device Twin Property, between each message sent to IoT Hub is currently delaying **1 second** between sending sensor telemetry messages.
+1. 请注意，JSON 格式的遥测消息已发送到 Azure IoT 中心。
 
     ```text
     Start reading and sending device telemetry...
@@ -629,27 +804,31 @@ In this exercise, you will run the simulated device. When the device is started 
     12/9/2019 5:47:01 PM > Sending message: {"temperature":26.628804161040485,"humidity":68.09610794675355,"pressure":1014.6454375411363,"latitude":40.093269544242695,"longitude":-98.22227128174003}
     ```
 
-    Keep the simulated device running for the next task.
+    模拟设备通过初始启动后，它将开始向 Azure IoT 中心发送模拟传感器遥测消息。
 
-### Task 2: Change the device configuration through its twin
+    请注意，发送到 IoT 中心的每条消息之间的延迟（由 `telemetryDelay` 设备孪生属性定义）当前正是在发送传感器遥测消息之间的延迟 **1 秒**。
 
-With the simulated device running, the `telemetryDelay` configuration can be updated by editing the device twin Desired State within Azure IoT Hub. This can be done by configuring the Device in the Azure IoT Hub within the Azure portal.
+    使模拟设备继续运行以执行下一个任务。
 
-1. Open the **Azure Portal** if it is not already open, and navigate to your **Azure IoT Hub** service.
+#### 任务 2：通过孪生更改设备配置
 
-2. On the IoT Hub blade, on the left side of the blade, under the **Explorers** section, click on **IoT devices**.
+在运行模拟设备的情况下，可以通过在 Azure IoT 中心内编辑设备孪生所需状态来更新 `telemetryDelay` 配置。这可以通过在 Azure 门户的 Azure IoT 中心中配置设备来完成。
 
-3. Within the list of IoT devices, click on the **Device ID** (likely **simulated-device1**) for the Simulated Device.
+1. 打开 **Azure 门户** ，然后导航到 **Azure IoT 中心**服务。
 
-    > [!IMPORTANT] Make sure you select the device from this lab.
+1. 在“IoT 中心”边栏选项卡左侧的 **“资源管理器”** 部分下，单击 **“IoT 设备”**。
 
-1. On the device blade, click the **Device Twin** button at the top of the blade.
+1. 在 IoT 设备列表中，单击 **“simulated-device1”**。
 
-    Within the **Device twin** blade, there is an editor with the full JSON for the device twin. This enables you to view and/or edit the device twin state directly within the Azure portal.
+    > **重要事项**：确保从此实验中选择设备。你可能还会看到在上一个实验室中创建的名为_“SimulatedDevice1”_的设备。
 
-1. Locate the `properties.desired` node within the Device Twin JSON. Add, or update if it already exists, the `telemetryDelay` property to have the value of `"2"`. This will update the `telemetryDelay` of the simulated device to send sensor telemetry every **2 seconds**.
+1. 在设备边栏选项卡上，在边栏选项卡顶部，单击 **“设备孪生”**。
 
-    The resulting JSON for this section of the device twin desired properties will look similar to the following:
+    在 **“设备孪生”** 边栏选项卡中，有一个编辑器带有设备孪生的完整 JSON 。这使你能够直接在 Azure 门户中查看和/或编辑设备孪生状态。
+
+1. 在设备孪生 JSON 中找到 `properties.desired` 节点。更新 `telemetryDelay` 属性，使其值为 `“2”`。保存后，这将更新模拟设备的 `telemetryDelay`，每隔 **2 秒**发送一次传感器遥测。
+
+    为此部分设备孪生所需属性生成的 JSON 将类似于以下内容：
 
     ```json
     "properties": {
@@ -667,13 +846,15 @@ With the simulated device running, the `telemetryDelay` configuration can be upd
         },
     ```
 
-    Leave the `$metadata` and `$version` value of the `properties.desired` node within the JSON. You should only update the `telemetryDelay` value to set the new device twin desired property value.
+    在 JSON 中保留 `properties.desired` 节点的 `$metadata` 和 `$version` 值。  你只应更新 `telemetryDelay` 值以设置新设备孪生所需属性值。
 
-1. Click **Save** at the top of the blade to set the new device twin desired properties for the device. Once saved, the updated device twin desired properties will automatically be sent to the simulated device.
+1. 在边栏选项卡顶部，要为设备设置新设备孪生所需属性，请单击**“保存”**。 
 
-1. Go back to the **Visual Studio Code Terminal** window, where the simulated device is running, and notice the application has been notified of the updated device twin `telemetryDelay` desired property setting.
+    保存后，更新后的设备孪生所需属性将自动发送到模拟设备。
 
-    The application outputs to the Console some messages that display that the new device twin desired properties have been loaded, and the changes have been set and reported back to the Azure IoT Hub.
+1. 返回到运行模拟设备的 **“Visual Studio Code 终端”** 窗口，并注意到应用程序已收到更新设备孪生 `telemetryDelay` 所需属性设置的通知。
+
+    该应用程序向控制台输出消息，表明已加载新设备孪生所需属性，并且已设置更改并将其报告回 Azure IoT 中心。
 
     ```text
     Desired Twin Property Changed:
@@ -682,7 +863,7 @@ With the simulated device running, the `telemetryDelay` configuration can be upd
     {"telemetryDelay":2}
     ```
 
-1. Notice the simulated device sensor telemetry messages are now being sent to Azure IoT Hub every _2_ seconds, now that the updated device twin desired properties have been sent to the device and the device has updated it's internal state accordingly.
+1. 请注意，模拟设备传感器遥测消息现在每隔 _2_ 秒发送到 Azure IoT 中心。
 
     ```text
     12/9/2019 5:48:06 PM > Sending message: {"temperature":33.89822140284731,"humidity":78.34939097908763,"pressure":1024.9467544610131,"latitude":40.020042418755764,"longitude":-98.41923808825841}
@@ -690,69 +871,95 @@ With the simulated device running, the `telemetryDelay` configuration can be upd
     12/9/2019 5:48:11 PM > Sending message: {"temperature":34.63600901637041,"humidity":60.95207713588703,"pressure":1013.6262313688063,"latitude":40.25499096898331,"longitude":-98.51199886959347}
     ```
 
-1. To exit the simulated device app within the **Terminal** window, press **Ctrl-C**.
+1. 在 **“终端”** 窗口，要退出模拟设备应用，请按 **“Ctrl-C”**。
 
-6. In the Azure Portal, close the **Device twin** blade. 
+1. 在 Azure 门户中，关闭 **“设备孪生”** 边栏选项卡。
 
-1. Still in the Azure Portal, on the Simulated Device blade, again click the **Device Twin** button.
+1. 仍在 Azure 门户中的“simulated-device1”边栏选项卡上，单击 **“设备孪生”**。
 
-1. This time, locate the JSON for the `properties.reported` object.
-   
-    This contains the state reported by the device. Notice the `telemetryDelay` property exists here as well, and is also set to `2`.  There is also a `$metadata` value that shows you when the value was reported data was last updated and when the specific reported value was last updated.
+1. 向下滚动以找到 `properties.reported` 对象的 JSON。
 
-1. Again close the **Device twin** blade.
+    这包含设备报告的状态。注意，`telemetryDelay` 属性也存在，并且也设置为 `2`。  还有一个 `$metadata` 值，显示所报告数据的上次更新时间以及所报告特定值的上次更新时间。
 
-1. Close the simulated device blade to return back to the IoT Hub blade.
+1. 再次关闭 **“设备孪生”** 边栏选项卡。
 
-## Exercise 7: Retire Group Enrollment
+1. 关闭“simulated-device1”边栏选项卡，然后导航回到你的 Azure 门户仪表板。
 
-In this exercise, you will retire the enrollment group and its devices from both the Device Provisioning Service and Azure IoT Hub.
+### 练习 7：淘汰组注册
 
-### Task 1: Retire the enrollment group from the DPS
+在本练习中，你将从设备预配服务和 Azure IoT 中心淘汰注册组及其设备。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+#### 任务 1：从 DPS 退出注册组
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-1. On your resource group tile, click **AZ-220-DPS-_{YOUR-ID}_** to navigate to the Device Provisioning Service.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. On the Device Provisioning Service settings pane on the left side, click **Manage enrollments**.
+1. 在资源组磁贴上，若要导航到设备预配服务，请单击 **AZ-220-DPS-_{YOUR-ID}_**。
 
-2. Click on **simulated-devices** in the list of **Enrollment Groups**.
+1. 在左侧菜单 **“设置”** 下，单击 **“管理注册”**。
 
-3. On the **Enrollment Group Details** blade, locate the **Enable entry** option and set it to **Disable**, then click **Save** at the top of the blade.
+1. 在 **“注册组”** 列表中，单击 **“simulated-devices”**。
 
-    Disabling the Group Enrollment within DPS allows you to temporarily disable devices within this Enrollment Group. This provides a temporary blacklist of the x.509 certificate used by these devices.
+1. 在 **“注册组详细信息”** 边栏选项卡上，向下滚动以找到 **“启用输入”** 字段，然后单击 **“禁用”**。
 
-4. To permanently delete the Enrollment Group, you must delete the enrollment group from DPS. To do this, check the box next to the **simulated-devices** **Group Name** on the **Manage enrollments** pane if it is not already checked, then click the **Delete** button at the top.
+    禁用 DPS 中的组注册可以使你暂时禁用此注册组中的设备。这提供了这些设备使用的 X.509 证书的临时黑名单。
 
-5. When prompted to confirm the action to **Remove enrollment**, click **Yes**.
-   
-   Once deleted, the Group Enrollment is completely removed from DPS, and would need to be recreated to add it back.
+1. 在边栏选项卡顶部，单击 **“保存”**。
 
-    > [!NOTE] If you delete an enrollment group for a certificate, devices that have the certificate in their certificate chain might still be able to enroll if a different, enabled enrollment group still exists for the root certificate or another intermediate certificate higher up in their certificate chain.
+    要永久删除注册组，必须从 DPS 删除注册组。 
 
-### Task 2: Retire the device from the IoT Hub
+1. 在 **“管理注册”** 窗格的 **“组名称”** 下，选中左侧的复选框 **“simulated-devices”**。
 
-Once the enrollment group has been removed from the Device Provisioning Service (DPS), the device registration will still exist within Azure IoT Hub. To fully retire the devices, you will need to remove that registration as well.
+    如果已选中 **“simulated-devices”** 左侧的复选框，请将其保持为选中状态。
 
-1. Within the Azure portal, on your resource group tile, click **AZ-220-HUB-_{YOUR-ID}_** to navigate to the Azure IoT Hub.
+1. 在顶部 **“管理注册”** 窗格中，单击 **“删除”**。
 
-8.  On the **IoT Hub** blade, on the left side, under the **Explorers** section, click on the **IoT devices** link.
+1. 当系统提示你确认 **“删除注册”** 操作时，请单击 **“是”** 。
 
-9.  Notice that the **simulated-device1** device ID still exists within the Azure IoT Hub device registry.
+   删除后，组注册将从 DPS 中完全删除，需要重新创建才能将其添加回 DPS。
 
-10. To remove the device, check box next to it in the list, then click the **Delete** button at the top of the pane.
+    > **注释**：  如果删除证书的注册组，根证书或其证书链中更高位置的另一个中间证书仍然存在另一个已启用的注册组，则在其证书链中包含该证书的设备可能仍然可以注册。
 
-11. When prompted with "_Are you certain you wish to delete selected device(s)_", click **Yes** to confirm and perform the deletion.
+1. 返回 Azure 门户仪表板。
 
-### Task 3: Verify the retirement
+#### 任务 2：从 IoT 中心停用设备
 
-With the group enrollment deleted from the Device Provisioning Service, and the device deleted from the Azure IoT Hub device registry, the device(s) have fully been removed from the solution.
+将注册组从设备预配服务 (DPS) 中删除后，设备注册仍存在于 Azure IoT 中心内。要完全淘汰设备，你还需要删除该注册。
 
-1.  Run the simulated device again by executing the `dotnet run` command within the Visual Studio Code **Terminal** window.
+1. 在 Azure 门户的资源组磁贴上，单击 **AZ-220-HUB-_{YOUR-ID}_**。
 
-    Now that the group enrollment and registered device have been deleted, the simulated device will no longer be able to provision nor connect. When the application attempts to use the configured x.509 certificate to connect to DPS, it will return a `ProvisioningTransportException` error message.
+1. 在左侧 **“IoT 中心”** 边栏选项卡的 **“浏览器”** 下，单击 **“IoT 设备”**。
+
+1. 请注意 **simulated-device1** 设备 ID 在 Azure IoT 中心设备注册表中仍然存在。
+
+1. 要删除设备，请选中 **“simulated-device1”** 左侧的复选框，然后单击 **“删除”**。
+
+    选中设备（复选框）后，将启用位于边栏选项卡顶部的 **“删除”** 按钮。
+
+1. 当出现提示“ _是否确定要删除选定设备_”时，单击 **“是的”**。
+
+#### 任务 3：验证淘汰情况
+
+从“设备预配服务”中删除组注册，并从“Azure IoT 中心”设备注册表中删除设备后，该设备已从解决方案中完全删除。
+
+1. 切换到包含 SimulatedDevice 代码项目的“Visual Studio Code”窗口。
+
+    如果在上一练习后关闭了 Visual Studio Code，请使用 Visual Studio Code 打开实验室 6 启动程序文件夹。
+
+1. 在 Visual Studio Code 的**视图**菜单上，单击 **“终端”**。
+
+1. 确保命令提示符位于 **“启动程序”** 文件夹位置
+
+1. 要开始运行模拟设备应用，请输入以下命令：
+
+    ```cmd/sh
+    dotnet run
+    ```
+
+1. 请注意设备尝试预配时列出的例外情况。
+
+    既然组注册和已注册设备已被删除，模拟设备将不能再预配或连接。当应用程序尝试使用配置的 X.509 证书连接到 DPS 时，它将返回 `ProvisioningTransportException` 错误消息。
 
     ```txt
     Found certificate: AFF851ED016CA5AEB71E5749BCBE3415F8CF4F37 CN=simulated-device1; PrivateKey: True
@@ -764,4 +971,4 @@ With the group enrollment deleted from the Device Provisioning Service, and the 
        at Microsoft.Azure.Devices.Provisioning.Client.Transport.ProvisioningTransportHandlerAmqp.RegisterAsync(ProvisioningTransportRegisterMessage message, CancellationToken cancellationToken)
     ```
 
-    You have completed the registration, configuration, and retirement as part of the IoT devices life cycle with Device Provisioning Service.
+    你已通过设备预配服务完成了 IoT 设备生命周期的注册、配置和淘汰。

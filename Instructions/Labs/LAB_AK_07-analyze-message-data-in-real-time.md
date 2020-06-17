@@ -1,91 +1,133 @@
----
+﻿---
 lab:
-    title: 'Lab 07: Device Message Routing'
-    module: 'Module 4: Message Processing and Analytics'
+    title: '实验室 07：设备消息路由'
+    module: '模块 4：消息处理和分析'
 ---
 
-# Device Message Routing
+# 设备消息路由
 
-## Lab Scenario
+## 实验室场景
 
-Suppose you manage a packaging facility. Packages are assembled for shipping, then placed on a conveyor belt that takes the packages and drops them off in mailing bins. Your metric for success is the number of packages leaving the conveyor belt.
+你使用 DPS 来实现自动设备注册给 Contoso 管理层留下了深刻的印象。他们现在要求你开始针对与产品包装和运输相关的特定业务问题探索 IoT 解决方案。
 
-The conveyor belt is a critical link in your process, and is monitored for vibration. The conveyor belt has three speeds: stopped, slow, and fast. The number of packages being delivered at slow speed is less than at the faster speed, though the vibration is also less at the slower speed. If the vibration becomes excessive, the conveyor belt has to be stopped and inspected.
+Contoso 奶酪制作业务的关键组成部分是奶酪的包装和运输给客户。为了最大程度地提高成本效率，Contoso 运营了一个本地包装设备。其工作流非常简单 - 装箱进行运输，然后放到传送带系统上进行传送，最终放入邮递箱中。运输成功的衡量标准是在给定时间段（通常是工作班次）内离开传送带系统的包裹数量。
 
-There are a number of different types of vibration. Forced vibration is vibration caused by an external force. Such a force as the broken wheel example, or a weighty package placed improperly on the conveyor belt. There's also increasing vibration, which might happen if a design limit is exceeded.
+传送带系统是此过程中的关键环节，并进行直观监控以确保包裹正确送达。该系统具有三种操作员可控速度：停止、慢速和快速。当然，以较慢速度运输的包裹数量低于以较快速度运输的包裹数量。然而，在较慢的速度下运输，传送带系统的振动水平也较小。此外，高振动级别可加速系统的磨损，并可能导致包裹从传送带上掉落。如果振动过大，则必须停止传送带以进行检查，以免发生更严重的故障。
 
-Vibration is typically measured as an acceleration (meters per second squared, m/s2).
+解决方案的主要目标是根据振动水平实现某种形式的预防性维护，该方法可用于在发生严重的系统损坏之前检测出故障。 
 
-The ultimate goal here is preventive maintenance. Detect that something is wrong, before any damage is caused.
+> **注释**：**预防性维护** （有时称为防止性维护或预测性维护）是一种设备维护程序，用于计划在设备正常运行时执行的维护活动。这种方法的目的是避免意外故障，这些故障通常会导致代价高昂的设备中断。
 
-It's not always easy to detect abnormal vibration levels. For this reason, you are looking to Azure IoT Hub to detect data anomalies. You plan to have a vibration detection sensor on the conveyor belt, sending continuous telemetry to an IoT Hub. The IoT Hub will use Azure Stream Analytics, and a built-in ML model, to give you advance warning of vibration anomalies. You also plan to archive all the telemetry data, just in case it's ever needed.
+检测异常振动水平并不总是那么容易。因此，你正在寻求一种 Azure IoT 解决方案，该解决方案将有助于测量振动水平和数据异常。振动传感器将连接到传送带的各个位置，你将使用 IoT 设备将遥测发送到 IoT 中心。IoT 中心将使用 Azure 流分析和内置的机器学习 (ML) 模型来实时提醒你提防振动异常。你还计划将所有遥测数据存档，以便将来可以进一步分析。
 
-You decide to build a prototype of the planned system, initially using simulated telemetry.
+你可以使用来自单个 IoT 设备的模拟遥测技术来进行解决方案的原型设计。
 
-## In This Lab
+为了以逼真的方式模拟振动数据，你可以与一位工程师一起工作以了解导致振动的原因。事实证明，有多种不同类型的振动会影响整体振动级别。例如，“强制振动”可能是由损坏的导轮或者传送带过载引起的。当超出系统设计限制（例如速度或重量）时，也会引入“持续增加的振动”。在工程师的协助下，你就可以为模拟的 IoT 设备开发代码，该设备可以生成可接受振动数据描述并产生异常。
 
-In this lab, you will 
+将创建以下资源：
 
-This lab includes:
+![实验室 7 的基础结构](media/LAB_AK_07-architecture.png)
 
-* Verify Lab Prerequisites
-* Create an Azure IoT Hub, and a device ID using Azure CLI
-* Create a C# app to send device telemetry to the IoT Hub, using Visual Studio code
-* Create a message route, through to blob storage, using the Azure portal
-* Create a second message route, through to an Azure Analytics job, using the Azure portal
-* Create an Azure Function to identify anomalies.
+## 本实验室概览
 
-## Exercise 1: Verify Lab Prerequisites
+在本实验室中，你将完成以下活动：
 
-This lab assumes the following resources are available:
+* 验证是否满足实验室先决条件（具有必需的 Azure 资源）
+* 使用 Azure CLI 创建 Azure IoT 中心和设备 ID
+* 使用 Visual Studio Code 创建一个 C# 应用以将设备遥测发送到 IoT 中心
+* 使用 Azure 门户创建到 Blob 存储的消息路由
+* 使用 Azure 门户创建到 Azure 流分析作业的第二个消息路由
 
-| Resource Type | Resource Name |
+## 实验室说明
+
+### 练习 1：验证实验室先决条件
+
+本实验室假定以下 Azure 资源可用：
+
+| 资源类型 | 资源名称 |
 | :-- | :-- |
-| Resource Group | AZ-220-RG |
-| IoT Hub | AZ-220-HUB-_{YOUR-ID}_ |
-| Device ID | VibrationSensorId |
+| 资源组 | AZ-220-RG |
+| IoT 中心 | AZ-220-HUB-_{YOUR-ID}_ |
+| 设备 ID | VibrationSensorId |
 
-If the resources are unavailable, please execute the **lab-setup.azcli** script before starting the lab.
+如果这些资源不可用，则需要在继续练习 2 之前按照以下说明运行 **lab07-setup.azcli** 脚本。脚本文件包含在本地克隆作为开发环境配置（实验室 3）的 GitHub 存储库中。
 
-The **lab-setup.azcli** script is written to run in a **bash** shell environment - the easiest way to execute this is in the Azure Cloud Shell.
+**lab07-setup.azcli** 脚本需要在 **bash** shell 环境中运行，在 Azure Cloud Shell 中执行此操作是最简单的方法。
 
-1. Using a browser, open the [Azure Shell](https://shell.azure.com/) and login with the Azure subscription you are using for this course.
+1. 使用浏览器打开 Azure Shell[](https://shell.azure.com/)，并使用本课程所使用的 Azure 订阅登录。
 
-1. To ensure the Azure Shell is using **Bash**, ensure the dropdown selected value in the top-left is **Bash**.
+    如果系统提示设置 Cloud Shell 的存储，请接受默认设置。
 
-1. To upload the setup script, in the Azure Shell toolbar, click **Upload/Download files** (fourth button from the right).
+1. 验证 Azure Cloud Shell 是否正在使用 **Bash**。
 
-1. In the dropdown, select **Upload** and in the file selection dialog, navigate to the **lab-setup.azcli** file for this lab. Select the file and click **Open** to upload it.
+    Azure Cloud Shell 页面左上角的下拉菜单用于选择环境。验证所选的下拉值是否为 **Bash**。
 
-    A notification will appear when the file upload has completed.
+1. 在 Azure Shell 工具栏上，单击**上传/下载文件** （从右数第四个按钮）。
 
-1. You can verify that the file has uploaded by listing the content of the current directory by entering the `ls` command.
+1. 在下拉菜单中，单击 **“上传”**。
 
-1. To create a directory for this lab, move **lab-setup.azcli** into that directory, and make that the current working directory, enter the following commands:
+1. 在“文件选择”对话框中，导航到配置开发环境时下载的 GitHub 实验室文件的文件夹位置。
+
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
+
+    * Allfiles
+      * Labs
+          * 07-Device Message Routing
+            * Setup
+
+    lab07-setup.azcli 脚本文件位于实验室 7 的 Setup 文件夹中。
+
+1. 选择 **lab07-setup.azcli** 文件，然后单击 **“打开”**。
+
+    文件上传完成后，将显示一条通知。
+
+1. 若要验证在 Azure Cloud Shell 中已上传了正确文件，请输入以下命令：
+
+    ```bash
+    ls
+    ```
+
+    使用 `ls` 命令列出当前目录的内容。你应该会看到列出了 lab07-setup.azcli 文件。
+
+1. 若要为此实验室创建一个包含安装脚本的目录，然后移至该目录，请输入以下 Bash 命令：
 
     ```bash
     mkdir lab7
-    mv lab-setup.azcli lab7
+    mv lab07-setup.azcli lab7
     cd lab7
     ```
 
-1. To ensure the **lab-setup.azcli** has the execute permission, enter the following commands:
+1. 为了保证 **lab07-setup.azcli** 具有执行权限，请输入以下命令：
 
     ```bash
-    chmod +x lab-setup.azcli
+    chmod +x lab07-setup.azcli
     ```
 
-1. To edit the **lab-setup.azcli** file, click **{ }** (Open Editor) in the toolbar (second button from the right). In the **Files** list, select **lab7** to expand it and then select **lab-setup.azcli**.
+1. 在“Cloud Shell”工具栏上，要编辑“lab07-setup.azcli”文件，请单击 **“打开编辑器”** （右侧第二个按钮 - **{ }**）。
 
-    The editor will now show the contents of the **lab-setup.azcli** file.
+1. 在 **“文件”** 列表中，要展开“lab7”文件夹并打开脚本文件，请单击 **“实验室 7”**，然后单击 **“lab07-setup.azcli”**。
 
-1. In the editor, update the values of the `YourID` and `Location` variables. Set `YourID` to your initials and todays date - i.e. **CAH121119**, and set `Location` to the location that makes sense for your resources.
+    编辑器现在将显示 **“lab07-setup.azcli”**文件。
 
-    > [!NOTE] The `Location` variable should be set to the short name for the location. You can see a list of the available locations and their short-names (the **Name** column) by entering this command:
+1. 在编辑器中，更新 `{YOUR-ID}` 和 `{YOUR-LOCATION}` 已分配的值。
+
+    以下面的示例为例，需要将 `{YOUR-ID}` 设置为在本课程开始时创建的唯一 ID，即 **CAH191211**，然后将 `{YOUR-LOCATION}` 设置为对你的资源有意义的位置。
+
+    ```bash
+    #!/bin/bash
+
+    YourID="{YOUR-ID}"
+    RGName="AZ-220-RG"
+    IoTHubName="AZ-220-HUB-$YourID"
+
+    Location="{YOUR-LOCATION}"
+    ```
+
+    > **注释**：  `{YOUR-LOCATION}` 变量应设置为该区域的短名称。输入以下命令，可以看到可用区域及其短名称的列表（**Name**列）：
+    >
     > ```bash
     > az account list-locations -o Table
-    > ```
-    > ```text
+    >
     > DisplayName           Latitude    Longitude    Name
     > --------------------  ----------  -----------  ------------------
     > East Asia             22.267      114.188      eastasia
@@ -95,96 +137,112 @@ The **lab-setup.azcli** script is written to run in a **bash** shell environment
     > East US 2             36.6681     -78.3889     eastus2
     > ```
 
-1. To save the changes made to the file and close the editor, click **...** in the top-right of the editor window and select **Close Editor**.
+1. 要保存对文件所做的更改并关闭编辑器，请单击编辑器窗口右上角的 **“...”**，然后单击 **“关闭编辑器”**。
 
-    If prompted to save, click **Save** and the editor will close.
+    如果提示保存，请单击 **“保存”**，编辑器将会关闭。
 
-    > [!NOTE] You can use **CTRL+S** to save at any time and **CTRL+Q** to close the editor.
+    > **注释**：  可以使用 **CTRL+S** 随时保存，使用 **CTRL+Q** 关闭编辑器。
 
-1. To create a resource group named **AZ-220-RG**, create an IoT Hub named **AZ-220-HUB-{YourID}**, add a device with an ID of **VibrationSensorId**, and display the device connection string, enter the following command:
+1. 要创建本实验室所需的资源，请输入以下命令：
 
     ```bash
-    ./lab-setup.azcli
+    ./lab07-setup.azcli
     ```
 
-    This will take a few minutes to run. You will see JSON output as each step completes.
+    运行此脚本可能需要几分钟。每个步骤完成时，你将会看到 JSON 输出。
 
-1. Notice that, once the script has completed, the connection string for the device is displayed.
+    该脚本将首先创建一个名为 **AZ-220-RG** 的资源组和一个名为 **AZ-220-HUB-{YourID}** 的 IoT 中心。如果它们已经存在，将显示相应的消息。然后，该脚本会将 ID 为 VibrationSensorId** 的设备添加到 IoT 中心并显示设备连接字符串。
 
-    The connection string starts with "HostName="
+1. 请注意，脚本完成后，将显示设备的连接字符串。
 
-1. Copy the connection string into a text document, and note that it is for the **VibrationSensorId** device.
+    连接字符串以 "HostName=" 开头
 
-    The next step is to code the sending of telemetry messages.
+1. 将连接字符串复制到文本文档中，并注意该字符串是否适用于 **VibrationSensorId** 设备。
 
-## Exercise 2: Write Code for Vibration Telemetry
+    将连接字符串保存到容易找到的位置后，就可以继续进行本实验室了。
 
-The key to monitoring our conveyor belt is the output of vibration telemetry. Vibration is usually measured as an acceleration (m/s^2), although sometimes it's measured in g-forces, where 1 g = 9.81 m/s^2. There are three types of vibration.
+### 练习 2：编写振动遥测代码
 
-* Natural vibration, which is just the frequency a structure tends to oscillate.
-* Free vibration, which occurs when the structure is impacted, but then left to oscillate without interference.
-* Forced vibration, which occurs when the structure is under some stress.
+监控传送带的关键是振动遥测的输出。振动通常以加速度 (m /s2) 表示，尽管有时以 g 力表示，其中1 g = 9.81 m/s2。有三种振动类型。
 
-Forced vibration is the dangerous one for our conveyor belt. Even if it starts at a low level this vibration can build so that the structure fails prematurely. There's less of a case for free vibration in conveyor belt operation. Most machines, as we all know, have a natural vibration.
+* 自然振动，即结构振动的频率。
+* 当结构受到冲击时会发生自由振动，但随后即便不受干扰也会一直保持振动。
+* 当结构处于一定应力下时会发生的强制振动。
 
-The code sample that you will build simulates a conveyor belt running at a range of speeds (stopped, slow, fast). The faster the belt is running, the more packages are delivered, but the greater the effects of vibration. We'll add natural vibration, based on a sine wave with some randomization. It's possible our anomaly detection system will falsely identify a spike or dip in this sine wave as an anomaly. We'll then add two forms of forced vibration. The first has the effect of a cyclic increase in vibration (see the images below). And secondly, an increasing vibration, where an additional sine wave is added, starting small but growing.
+受迫振动对我们的传送带而言是一个危险。即使最初的程度很弱，但这种振动会积累，最终导致结构过早失效。传送带操作中的自由振动很少。众所周知，大多数机器都有自然振动。
 
-We assume that our conveyor belt has just one sensor device (our simulated IoT Device). In addition to communicating vibration data, the sensor also pumps out some other data (packages delivered, ambient temperature, and similar metrics). For this lab, the additional values will be sent to a storage archive.
+你将构建的代码示例将模拟传送带以一定速度（停止、慢速、快速）运行。传送带运行得越快，运送的包裹越多，但是振动的影响越大。我们将基于具有一定随机性的正弦波添加自然振动。我们的异常情况检测系统可能会错误地将此正弦波中的尖峰或下降识别为异常。然后，我们将添加两种形式的强制振动。第一，具有振动循环增加的效果（请参见下图）。第二，振动增加，增加了一个额外的正弦波，开始时振动较小但一直在增加。
 
-Almost all the coding in this lab will be completed during this exercise. You will be using Visual Studio Code to build the simulator code in C#.
+在此原型阶段，我们假设传送带上只有一个传感器设备（我们的模拟 IoT 设备）。除了传递振动数据外，传感器还可以抽出一些其他数据（已交付的包裹、环境温度和类似指标）。在本实验中，其他值将发送到存储档案。
 
-In this exercise, you will:
+在本练习中，本实验中几乎所有的编码都将完成。你将使用 Visual Studio Code 以 C# 生成模拟器代码。你将在本实验的后部分完成少量 SQL 编码工作。
 
-* build the conveyor belt simulator
-* send telemetry messages to the IoT Hub created in the previous unit
+在本练习中，你将：
 
-Later in this lab you will complete a small amount of SQL coding.
+* 生成传送带模拟器
+* 将遥测消息发送到上一个单元中创建的 IoT 中心
 
-### Task 1: Create an App to Send Telemetry
+#### 任务 1：创建一个应用以发送遥测
 
-1. To use C# in Visual Studio Code, ensure both [.NET Core](https://dotnet.microsoft.com/download), and the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp) are installed.
+1. 打开 Visual Studio Code，然后验证是否已安装 C# 扩展。
 
-1. To open a terminal in Visual Studio Code, open the **Terminal** menu and click **New Terminal**.
+    你在本课程的实验 3 中设置了开发环境，但是在开始构建设备应用之前，需要快速仔细检查一下。 
 
-1. In the terminal, to create a directory called "vibrationdevice" and change the current directory to that directory, enter the following commands:
+    要在 Visual Studio Code 中使用 C#，必须安装 [.NET Core](https://dotnet.microsoft.com/download) 和 [C# 扩展](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp)。你可以通过单击左侧工具栏中从下往下数的第 5 个按钮打开 Visual Studio Code“扩展”窗格。
+
+1. 在**“终端”**菜单中，单击**“新建终端”**。
+
+    注意命令提示符中指示的目录路径。你无需在上一个实验室项目的文件夹结构中开始构建此项目。
+  
+1. 在终端命令提示符下，要创建一个名为“vibrationdevice”的目录，并将当前目录更改为该目录，请输入以下命令：
 
    ```bash
    mkdir vibrationdevice
    cd vibrationdevice
    ```
 
-1. To create a new .NET console application. enter the following command in the terminal:
+1. 要创建一个新的 .NET 控制台应用程序，请输入以下命令：
 
     ```bash
     dotnet new console
     ```
 
-    This command creates a **Program.cs** file in your folder, along with a project file.
+    此命令将在文件夹中创建一个 **Program.cs** 文件以及一个项目文件。
 
-1. In the terminal, to install the required libraries. Enter the following commands:
+1. 要安装设备应用所需的代码库，请输入以下命令：
 
     ```bash
     dotnet add package Microsoft.Azure.Devices.Client
     dotnet add package Newtonsoft.Json
     ```
 
-1. From the **File** menu, open up the **Program.cs** file, and delete the default contents.
+    在下一个任务中，你将构建并测试你的模拟设备应用。
 
-    > [!NOTE] If you are unsure where the **Program.cs** file is located, enter the command `pwd` in the console to see the current directory.
+#### 任务 2：添加代码以发送遥测
 
-1. After you've entered the code below into the **Program.cs** file, you can run the app with the command `dotnet run`. This command will run the **Program.cs** file in the current folder.
+你在此任务中构建的模拟设备应用将模拟监视传送带的 IoT 设备。该应用将模拟传感器读数并每两秒钟报告一次振动传感器数据。
 
-### Task 2: Add Code to Send Telemetry
+1. 在 Visual Studio Code **“文件”** 菜单中，单击 **“打开文件夹”**。
 
-The following app simulates a conveyor belt, and reports vibration sensor data every two seconds.
+    你将使用终端命令提示符下列出的文件夹路径来查找你的项目文件夹。
+  
+1. 在“打开文件夹”对话框中，导航到“终端”命令提示符下显示的目录路径，然后依次单击 **“振动设备”** 和 **“选择文件夹”**。
 
-1. If it isn't already open in Visual Studio Code, open the **Program.cs** file for the device app.
+    如果系统提示你加载所需资产，请单击 **“确定”**。
 
-1. Copy and paste the following code:
+    此时将打开“Visual Studio Code 资源管理器”窗格。如果不是，请使用左侧的工具栏打开“资源管理器”窗格。你可以将鼠标指针悬停在工具栏按钮上以显示按钮名称。
+
+1. 在“EXPLORER”窗格中，单击 **“Program.cs”**。
+
+1. 在代码编辑器视图中，删除 Program.cs 文件的默认内容。
+
+    当你在上一个任务中运行 `dotnet new console`  命令时，将创建默认内容。
+
+1. 要为你的模拟设备创建代码，请将以下代码粘贴到空的 Program.cs 文件中：
 
     ```csharp
-    // Copyright (c) Microsoft. All rights reserved.
-    // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+    // 版权所有 (c) Microsoft。版权所有。
+    // 已获得 MIT License 颁发的许可证。有关完整的许可信息，请参阅项目根目录中的许可文件。
 
     using System;
     using Microsoft.Azure.Devices.Client;
@@ -192,40 +250,40 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
     using System.Text;
     using System.Threading.Tasks;
 
-    namespace vibration_device
+    命名空间振动_设备
     {
         class SimulatedDevice
         {
-            // Telemetry globals.
-            private const int intervalInMilliseconds = 2000;                                // Time interval required by wait function.
-            private static readonly int intervalInSeconds = intervalInMilliseconds / 1000;  // Time interval in seconds.
+            // 遥测数据全局变量。
+            private const int intervalInMilliseconds = 2000;                                   //等待功能所需的时间间隔。
+            private static readonly int intervalInSeconds = intervalInMilliseconds / 1000; 	       // 时间间隔（以秒为单位）。
 
-            // Conveyor belt globals.
+            // 传送带全局。
             enum SpeedEnum
             {
                 stopped,
                 slow,
                 fast
             }
-            private static int packageCount = 0;                                        // Count of packages leaving the conveyor belt.
-            private static SpeedEnum beltSpeed = SpeedEnum.stopped;                     // Initial state of the conveyor belt.
-            private static readonly double slowPackagesPerSecond = 1;                   // Packages completed at slow speed/ per second
-            private static readonly double fastPackagesPerSecond = 2;                   // Packages completed at fast speed/ per second
-            private static double beltStoppedSeconds = 0;                               // Time the belt has been stopped.
-            private static double temperature = 60;                                     // Ambient temperature of the facility.
-            private static double seconds = 0;                                          // Time conveyor belt is running.
+            private static int packageCount = 0;                                        // 离开传送带的包裹数量。
+            private static SpeedEnum beltSpeed = SpeedEnum.stopped;                     // 传送带的初始状态。
+            private static readonly double slowPackagesPerSecond = 1;                   // 包裹以慢速/每秒的速度完成包装
+            private static readonly double fastPackagesPerSecond = 2;                   // 以快速/每秒的速度完成程序包
+            private static double beltStoppedSeconds = 0;                               // 传送带停止的时间。
+            private static double temperature = 60;                                     // 设备的环境温度。
+            private static double seconds = 0;                                          // 传送带的运行时间。
 
-            // Vibration globals.
-            private static double forcedSeconds = 0;                                    // Time since forced vibration started.
-            private static double increasingSeconds = 0;                                // Time since increasing vibration started.
-            private static double naturalConstant;                                      // Constant identifying the severity of natural vibration.
-            private static double forcedConstant = 0;                                   // Constant identifying the severity of forced vibration.
-            private static double increasingConstant = 0;                               // Constant identifying the severity of increasing vibration.
+            // 振动全局。
+            private static double forcedSeconds = 0;                                    // 自开始强制振动以来的时间。
+            private static double increasingSeconds = 0;                                // 自开始增加振动以来的时间。
+            private static double naturalConstant;                                      // 用于确定自然振动的严重程度的常数。
+            private static double forcedConstant = 0;                                   // 用于确定强迫振动的严重程度的常数。
+            private static double increasingConstant = 0;                               // 用于确定不断增加的振动的严重程度的常数。
 
-            // IoT Hub global variables.
+            // IoT 中心全局变量。
             private static DeviceClient s_deviceClient;
 
-            // The device connection string to authenticate the device with your IoT hub.
+            // 用于通过 IoT 中心对设备进行身份验证的设备连接字符串。
             private readonly static string s_deviceConnectionString = "<your device connection string>";
 
             private static void colorMessage(string text, ConsoleColor clr)
@@ -244,15 +302,15 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                 colorMessage(text, ConsoleColor.Red);
             }
 
-            // Async method to send simulated telemetry.
+            // 异步方法发送模拟遥测。
             private static async void SendDeviceToCloudMessagesAsync(Random rand)
             {
-                // Simulate the vibration telemetry of a conveyor belt.
+                // 模拟传送带的振动遥测。
                 double vibration;
 
                 while (true)
                 {
-                    // Randomly adjust belt speed.
+                    // 随机调整传送带速度。
                     switch (beltSpeed)
                     {
                         case SpeedEnum.fast:
@@ -285,10 +343,10 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                             break;
                     }
 
-                    // Set vibration levels.
-                    if (beltSpeed == SpeedEnum.stopped)
+                    //设置振动等级。
+                    如果（beltSpeed == SpeedEnum.stopped）
                     {
-                        // If the belt is stopped, all vibration comes to a halt.
+                        //如果皮带停止，则所有振动都将停止。
                         forcedConstant = 0;
                         increasingConstant = 0;
                         vibration = 0;
@@ -298,18 +356,18 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                     }
                     else
                     {
-                        // Conveyor belt is running.
+                        // 传送带正在运行。
                         beltStoppedSeconds = 0;
 
-                        // Check for random starts in unwanted vibrations.
+                        // 检查是否随机启动不必要的振动。
 
-                        // Check forced vibration.
+                        // 检查是否存在强制振动。
                         if (forcedConstant == 0)
                         {
                             if (rand.NextDouble() < 0.1)
                             {
-                                // Forced vibration starts.
-                                forcedConstant = 1 + 6 * rand.NextDouble();             // A number between 1 and 7.
+                                // 强制振动开始。
+                                forcedConstant = 1 + 6 * rand.NextDouble();             // 1 到 7 之间的数字。
                                 if (beltSpeed == SpeedEnum.slow)
                                     forcedConstant /= 2;                                // Lesser vibration if slower speeds.
                                 forcedSeconds = 0;
@@ -325,19 +383,19 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                             }
                             else
                             {
-                                redMessage($"Forced vibration: {Math.Round(forcedConstant, 1)} started at: {DateTime.Now.ToShortTimeString()}");
+                                redMessage($"Forced vibration: {Math.Round(forcedConstant, 1)} 开始于：{DateTime.Now.ToShortTimeString()}");
                             }
                         }
 
-                        // Check increasing vibration.
+                        // 检查振动是否增加。
                         if (increasingConstant == 0)
                         {
                             if (rand.NextDouble() < 0.05)
                             {
-                                // Increasing vibration starts.
-                                increasingConstant = 100 + 100 * rand.NextDouble();     // A number between 100 and 200.
+                                // 开始增加振动。
+                                increasingConstant = 100 + 100 * rand.NextDouble();     // 100 到 200 之间的数字。
                                 if (beltSpeed == SpeedEnum.slow)
-                                    increasingConstant *= 2;                            // Longer period if slower speeds.
+                                    increasingConstant *= 2;                            // 如果速度较慢，则周期较长。
                                 increasingSeconds = 0;
                                 redMessage($"Increasing vibration starting with severity: {Math.Round(increasingConstant, 2)}");
                             }
@@ -355,29 +413,29 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                             }
                         }
 
-                        // Apply the vibrations, starting with natural vibration.
+                        / /从自然振动开始施加振动。
                         vibration = naturalConstant * Math.Sin(seconds);
 
                         if (forcedConstant > 0)
                         {
-                            // Add forced vibration.
+                            // 添加强制振动。
                             vibration += forcedConstant * Math.Sin(0.75 * forcedSeconds) * Math.Sin(10 * forcedSeconds);
                             forcedSeconds += intervalInSeconds;
                         }
 
                         if (increasingConstant > 0)
                         {
-                            // Add increasing vibration.
+                            // 增加振动。
                             vibration += (increasingSeconds / increasingConstant) * Math.Sin(increasingSeconds);
                             increasingSeconds += intervalInSeconds;
                         }
                     }
 
-                    // Increment the time since the conveyor belt app started.
+                    // 增加自传送带应用启动以来的时间。
                     seconds += intervalInSeconds;
 
-                    // Count the packages that have completed their journey.
-                    switch (beltSpeed)
+                    // 计算完成历程的包。
+                    开关（传送带速度）
                     {
                         case SpeedEnum.fast:
                             packageCount += (int)(fastPackagesPerSecond * intervalInSeconds);
@@ -388,18 +446,18 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                             break;
 
                         case SpeedEnum.stopped:
-                            // No packages!
+                            // 没有包！
                             break;
                     }
 
-                    // Randomly vary ambient temperature.
+                    // 随机改变环境温度。
                     temperature += rand.NextDouble() - 0.5d;
 
-                    // Create two messages:
-                    // 1. Vibration telemetry only, that is routed to Azure Stream Analytics.
-                    // 2. Logging information, that is routed to an Azure storage account.
+                    // 创建两条消息：
+                    // 1.仅限振动遥测，这会路由到 Azure 流分析。
+                    // 2.记录路由到 Azure 存储帐户的信息。
 
-                    // Create the telemetry JSON message.
+                    // 创建遥测 JSON 消息。
                     var telemetryDataPoint = new
                     {
                         vibration = Math.Round(vibration, 2),
@@ -407,19 +465,19 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                     var telemetryMessageString = JsonConvert.SerializeObject(telemetryDataPoint);
                     var telemetryMessage = new Message(Encoding.ASCII.GetBytes(telemetryMessageString));
 
-                    // Add a custom application property to the message. This is used to route the message.
+                    // 将自定义应用程序属性添加到消息中。这用于路由消息。
                     telemetryMessage.Properties.Add("sensorID", "VSTel");
 
-                    // Send an alert if the belt has been stopped for more than five seconds.
+                    // 如果传送带已经停止超过五秒钟，则发送警报。
                     telemetryMessage.Properties.Add("beltAlert", (beltStoppedSeconds > 5) ? "true" : "false");
 
                     Console.WriteLine($"Telemetry data: {telemetryMessageString}");
 
-                    // Send the telemetry message.
+                    // 发送遥测消息。
                     await s_deviceClient.SendEventAsync(telemetryMessage);
                     greenMessage($"Telemetry sent {DateTime.Now.ToShortTimeString()}");
 
-                    // Create the logging JSON message.
+                    // 创建日志记 录JSON 消息。
                     var loggingDataPoint = new
                     {
                         vibration = Math.Round(vibration, 2),
@@ -430,15 +488,15 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                     var loggingMessageString = JsonConvert.SerializeObject(loggingDataPoint);
                     var loggingMessage = new Message(Encoding.ASCII.GetBytes(loggingMessageString));
 
-                    // Add a custom application property to the message. This is used to route the message.
+                    // 将自定义应用程序属性添加到消息中。这用于路由消息。
                     loggingMessage.Properties.Add("sensorID", "VSLog");
 
-                    // Send an alert if the belt has been stopped for more than five seconds.
+                    // 如果传送带已经停止超过五秒钟，则发送警报。
                     loggingMessage.Properties.Add("beltAlert", (beltStoppedSeconds > 5) ? "true" : "false");
 
                     Console.WriteLine($"Log data: {loggingMessageString}");
 
-                    // Send the logging message.
+                    // 发送日志记录消息。
                     await s_deviceClient.SendEventAsync(loggingMessage);
                     greenMessage("Log data sent\n");
 
@@ -451,10 +509,10 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
                 Random rand = new Random();
                 colorMessage("Vibration sensor device app.\n", ConsoleColor.Yellow);
 
-                // Connect to the IoT hub using the MQTT protocol.
+                // 使用 MQTT 协议连接到 IoT 中心。
                 s_deviceClient = DeviceClient.CreateFromConnectionString(s_deviceConnectionString, TransportType.Mqtt);
 
-                // Create a number between 2 and 4, as a constant for normal vibration levels.
+                // 创建 2 到 4 之间的数字，作为正常振动水平的常数。
                 naturalConstant = 2 + 2 * rand.NextDouble();
 
                 SendDeviceToCloudMessagesAsync(rand);
@@ -464,60 +522,82 @@ The following app simulates a conveyor belt, and reports vibration sensor data e
     }
     ```
 
-    > **Important:** Take a few minutes, and read through the comments in the code. Notice how the vibration math from the description of the scenario in the introduction has worked its way into the code. The most important section of code for learning about IoT messages, starts with the "Create two messages:" comment.
+1. 花几分钟时间查看代码。
 
-1. Replace the `<your device connection string>` (line 44) with the device connection string you saved off in the previous unit. No other lines of code need to be changed.
+    > **重要事项：**花几分钟时间通读代码中的注释。用于了解 IoT 消息的最重要代码部分从“Create two messages:”注释开始。你还可能有兴趣了解用于定义传送带振动级别的数学（在本实验开始时的情景描述中介绍）如何在代码中发挥作用。
 
-1. Save the **Program.cs** file.
+1. 将 `<your device connection string>`（第 44 行）替换为你在上一次练习中保存的设备连接字符串。
 
-    > [!NOTE] The code is also available in the `/labFiles` folder - remember to replace the `<your device connection string>`.
+    > **注释**：这是你需要对此代码进行的唯一更改。
 
-### Task 3: Test your Code to Send Telemetry
+1. 保存 **Program.cs** 文件。
 
-1. To run the app in the terminal, enter the following command:
+    > **注释**：  该代码还可在实验室 7 的 `/Starter` 文件夹中找到。如果选择使用“启动程序”文件夹中的代码，请记住替换 `<your device connection string>`。
+
+#### 任务 3：测试你的代码以发送遥测
+
+1. 要在终端中运行该应用，请输入以下命令：
 
     ```bash
     dotnet run
     ```
 
-   This command will run the **Program.cs** file in the current folder.
+   此命令将在当前文件夹中运行 **“Program.cs”** 文件。
 
-1. You should quickly see console output, similar to the following:
+1. 显示的控制台输出应类似于以下内容：
 
-    ![Console Output](../../Linked_Image_Files/M99-L07-vibration-telemetry.png)
+    ```
+    Vibration sensor device app.
 
-    > [!NOTE] Green text is used to show things are working as they should and red text when bad stuff is happening. If you don't get a screen similar to this image, start by checking your device connection string.
+    Telemetry data: {"vibration":0.0}
+    Telemetry sent 10:29 AM
+    Log data: {"vibration":0.0,"packages":0,"speed":"stopped","temp":60.22}
+    Log data sent
 
-1. Watch the telemetry for a short while, checking that it is giving vibrations in the expected ranges.
+    Telemetry data: {"vibration":0.0}
+    Telemetry sent 10:29 AM
+    Log data: {"vibration":0.0,"packages":0,"speed":"stopped","temp":59.78}
+    Log data sent
+    ```
 
-1. You can leave this app running, as it's needed for the next section.
+    > **注释**：  在“终端”窗口中，绿色文本表示工作正常，红色文本表示工作异常。如果收到错误消息，请先检查设备连接字符串。
 
-### Task 4: Verify the IoT Hub is Receiving Telemetry
+1. 短暂观察遥测，检查其是否在预期范围内振动。
 
-1. To verify that your IoT Hub is receiving the telemetry, open the [Azure Portal](https://portal.azure.com) and navigate to the Azure IoT Hub **AZ-220-HUB-_{YourID}_** **Overview** pane.
+1. 让此应用继续运行下一个任务。
 
-1. On the **Overview** page, scroll down to the bottom of the page where the metrics tiles are displayed.
+    如果你不会继续执行下一个任务，则可以在终端窗口中输入 **Ctrl-C** 停止该应用。你可以稍后使用 `dotnet run` 命令再次启动它。
 
-1. Adjacent to **Show data for last**, change the time range to one hour. The **Device to cloud messages** plot should show some activity.
+#### 任务 4：验证 IoT 中心正在接收遥测
 
-    If no activity is shown, wait a short while, as there's some latency.
+在本任务中，你将使用 Azure 门户来验证 IoT 中心是否在接收遥测数据。
 
-    With your device pumping out telemetry, and your hub receiving it, the next step is to route the messages to their correct endpoints.
+1. 打开 “Azure 门户”[](https://portal.azure.com)
 
-## Exercise 3: Create a Message Route to Azure Blob Storage
+1. 在仪表板的 **“AZ-220-RG”** 资源组磁贴上，单击 **“AZ-220-HUB-_{YourID}_”**。
 
-The architecture of our vibration monitoring system requires data be sent to two destinations: storage and analysis. Azure IoT provides a great method of directing data to the right service, through *message routing*.
+1. 在 **“总览”** 窗格中，向下滚动以查看指标磁贴。
 
-In our scenario, we need create two routes:
+1. 毗邻 **“显示最后的数据”**，将时间范围更改为一小时。 
 
-* the first route will be to storage for achiving data
-* the second route will to an Event Hub for anomoly detection
+    **“设备到云消息”** 磁贴应该正在绘制一些当前活动。如果未显示任何活动，请稍等片刻，因为有些延迟。
 
-Since message routes are best built and tested one at a time, this exercise will focus on the storage route. We'll call this route the "logging" route, and it involves digging a few levels deep into the creation of Azure resources. All the features required to build this route are available in the Azure portal.
+    随着设备抽出遥测并中心接收遥测，下一步是将消息路由到其正确的端点。
 
-We will keep the storage route simple, and use Azure Blob storage (though Data Lake storage is also available). The key feature of message routing is the filtering of incoming data. The filter, written in SQL, streams output down the route only when certain conditions are met.
+### 练习 3：创建到 Azure Blob 存储的消息路由
 
-One of the easiest ways to filter data is on a message property, which is why we added these two lines to our code:
+我们的振动监控系统的体系结构要求将数据发送到两个目的地：用于存档数据的存储位置和用于更直接分析的位置。Azure IoT 提供了一种通过*消息路由选择*将数据定向到正确服务的好方法。
+
+在我们的场景中，我们需要创建两个路由：
+
+* 第一条路由将是用于数据存档的存储
+* 第二个路由是传输至事件中心进行异常情况检测
+
+由于最好一次性生成并测试一条消息路由，因此本练习将重点介绍存储路由。我们将此路由称为“日志记录”路由，其中涉及深入研究创建 Azure 资源的几个级别。Azure 门户中提供了生成此路由所需的所有功能。
+
+我们将使存储路由保持简单，并使用 Azure Blob 存储（不过也可以使用 Data Lake Storage）。消息路由的主要功能是过滤传入数据。仅当满足特定条件时，以 SQL 编写的筛选器才会向下输出路由。
+
+筛选数据的最简单方法之一是根据消息属性筛选，这就是我们在代码中添加了这两行的原因：
 
 ```csharp
 ...
@@ -526,231 +606,249 @@ telemetryMessage.Properties.Add("sensorID", "VSTel");
 loggingMessage.Properties.Add("sensorID", "VSLog");
 ```
 
-An SQL query embedded into our message route can test the `sensorID` value.
+嵌入到我们的消息路由中的 SQL 查询可以测试 `sensorID` 值。
 
-In this exercise, you will create and test the logging route.
+在本练习中，你将创建并测试日志记录路由。
 
-### Task 1: Route the logging message to Azure storage
+#### 任务 1：将日志消息路由到 Azure 存储
 
-1. In the [Azure Portal](https://portal.azure.com/), ensure the **Overview** page for the IoT Hub you created (**AZ-220-HUB-_{YourID}_**) is open.
+1. 在 [Azure 门户](https://portal.azure.com/)中，确保 IoT 中心的**“概述”**已打开。
 
-1. In the left-hand menu, under **Messaging**, select **Message routing**.
+1. 在左侧菜单上的 **“消息传递”** 下，单击 **“消息路由”**。
 
-1. On the **Message routing** page, ensure that **Routes** is selected.
+1. 在 **“消息路由”** 窗格中，确保选择 **“路线”** 选项卡。
 
-1. Click **+ Add** to add the first route.
+1. 要添加第一条路线，请单击 **“添加”**。
 
-    The **Add a route** blade is displayed.
+    现在应显示 **“添加路线”** 边栏选项卡。
 
-1. One the **Add a route** blade, under **Name**, enter `vibrationLoggingRoute`.
+1. 在 **“添加路线”** 边栏选项卡的 **“名称”** 下，输入 `vibrationLoggingRoute`。
 
-1. To the right of **Endpoint**, click **+ Add endpoint**, and select **Storage** from the drop-down list.
+1. 在 **“终结点”** 的右侧，单击 **“添加终结点”**，然后在下拉列表中，单击 **“存储”**。
 
-    The **Add a storage endpoint** pane is displayed.
+    随即将显示 **“添加存储终结点”** 边栏选项卡。
 
-1. Under **Endpoint name**, enter `vibrationLogEndpoint`.
+1. 在 **“终结点名称”** 下，输入 `vibrationLogEndpoint`。
 
-1. To create storage and select a container, click **Pick a container**.
+1. 要创建存储并选择容器，请单击 **“选取容器”**。
 
-    A list of the storage accounts already present in the Azure Subscription is listed. At this point you could select an existing storage account and container, however for this lab we will create new ones.
+    已列出 Azure 订阅中已存在的存储帐户列表。此时，你可以选择现有的存储帐户和容器，但对于本实验室，我们将新建帐户和容器。
 
-1. To create a new storage account, click **+ Storage account**.
+1. 要新建存储帐户，请单击 **“存储帐户”**。
 
-    The **Create storage** pane is displayed.
+    将显示 **“创建存储”** 窗格。
 
-1. On the **Create Storage** pane, under **Name**, enter **vibrationstore** and add your initials and today's date - **vibrationstorecah191211**. 
+1. 在 **“创建存储”** 窗格的 **“名称”**下，输入**vibrationstore**，然后在其后追加你的姓名首字母缩写和当天的日期 - **vibrationstorecah191211**。
 
-    > [!NOTE] This field can only contain lower-case letters and numbers, must be between 3 and 24 characters, and must be unique.
+    > **注释**：  此字段只能包含小写字母和数字，必须介于 3-24 个字符之间，并且必须是唯一的。
 
-1. Under **Account kind**, select **StorageV2 (general purpose V2)**.
+1. 在 **“帐户类型”** 选项下，选择 **“StorageV2（通用 V2）”**。
 
-1. Under **Performance**, select **Standard** if it is not selected.
+1. 在 **“性能”** 列表中选中 **“标准”**。
 
-    This keeps costs down at the expense of overall performance.
+    这样可以降低成本，但整体性能会减弱。
 
-1. Under **Replication**, select **Locally-redundant storage (LRS)** if it is not already selected.
+1. 在 **“复制”** 选项下，确保 **“本地 - 冗余存储 (LRS)”** 已选定。
 
-    This keeps costs down at the expense of risk mitigation for disaster recovery. In production your solution may require a more robust replication strategy.
+    这样可以降低成本，但有降低缓解灾难恢复能力的风险。在生产中，你的解决方案可能需要更强大的复制策略。
 
-1. Under **Location**, choose the region you are using for all of your lab work.
+1. 在 **“位置”** 列表中，选择用于本课程中的实验的区域。
 
-1. To create the storage account, click **OK**, then wait until the request is validated, then completed. Validation and creation can take a minute or two.
+1. 若要创建存储帐户，请单击 **“确定”**。
 
-    Once complete, the **Create storage account** pane will close. The **Storage accounts** screen will now appear. It should have updated and show the storage account that was just created.
+1. 等待直到请求通过验证并且存储帐户部署已完成。
 
-1. Search for **vibrationstore**, and select the storage account you just created. 
+    验证和创建可能需要一两分钟。
 
-   The **Containers** blade should appear. As this is a new storage account, there are no containers to list.
+    完成后，**“创建存储帐户”** 窗格将关闭，并将显示 **“存储帐户”** 边栏选项卡。“存储帐户”边栏选项卡应已更新为显示刚刚创建的存储帐户。
 
-1. To create a container, click **+ Container**.
+1. 搜索 **vibrationstore**，然后选择你刚创建的存储帐户。
 
-    The **New container** popup is displayed.
+   此时应显示 **“容器”** 边栏选项卡。由于这是一个新的存储帐户，因此没有容器列出。
 
-1. In the **New container** popup, under **Name**, enter **vibrationcontainer**
+1. 要创建容器，请单击 **“容器”**。
 
-   Again, only lower-case letters and numbers are accepted.
+    随即将显示 **“新建容器”** 边栏选项卡。
 
-1. Under **Public access level**, ensure **Private (no anonymous access)** is selected.
+1. 在 **“新建容器”** 弹出窗口的 **“名称”** 下，输入 **vibrationcontainer**
 
-1. To create the container, click **OK**, then wait for your container to be available. 
+   同样，仅接受小写字母和数字。
 
-1. To choose the container for the solution, highlight the container in the list, and click **Select** at the bottom of the page.
+1. 在 **“公共访问级别”** 下，确保选择 **“专用(不允许匿名访问)”**。
 
-    You will return to the **Add a storage endpoint** pane. Note that the **Azure Storage container** has been set to the URL for the storage account and container you just created.
+1. 要创建容器，请单击 **“OK”**。
 
-1. Leave the **Batch frequency** and **Chunk size window** to the default values of **100**.
+    稍后，容器的 **“租用状态”** 将显示为 **“可用”** 。
 
-1. Under **Encoding**, note there are two options and that **AVRO** is selected.
+1. 要选择解决方案的容器，请单击 **“振动容器”**，然后单击 **“选择”**。
 
-    > [!NOTE] By default IoT Hub writes the content in Avro format, which has both a message body property and a message property. The Avro format is not used for any other endpoints. Although the Avro format is great for data and message preservation, it's a challenge to use it to query data. In comparison, JSON or CSV format is much easier for querying data. IoT Hub now supports writing data to Blob storage in JSON as well as AVRO.
+    你应该返回到 **“添加存储终结点”** 窗格。请注意，**Azure 存储容器**已设置为你刚刚创建的存储帐户和容器的 URL。
 
-1. The final field **File name format** specifies the pattern used to write the data to files in storage. The various tokens are replace with values as the file is created.
+1. 将 **“批处理频率”** 和 **“块大小窗口”** 保留为默认值 **“100”** 。
 
-1. To create the endpoint, click **Create** at the bottom of the pane. Validation and creation will take a few moments.
+1. 在 **“编码”** 下，注意有两个选项，并且已选中 **“AVRO”**。
 
-    You should now be back at the **Add a route** blade. 
+    > **注释**：  默认情况下，IoT 中心以 Avro 格式写入内容，该格式同时具有消息正文属性和消息属性。Avro 格式不用于任何其他终结点。Avro 格式适用于数据和消息保存，但是使用此格式查询数据是一个挑战。相比之下，JSON 或 CSV 格式更易于查询数据。IoT 中心现在支持使用 JSON 和 AVRO 格式将数据写入 Blob 存储。
 
-1. Under **Data source**, ensure **Device Telemetry Messages** is selected.
+1. 检查 **“文件名格式”** 字段中指定的值。
 
-1. Under **Enable route**, ensure **Enable** is selected.
+    **“文件名格式”** 字段指定用于将数据写入存储中的文件中的模式。创建文件时，将各个令牌替换为值。
 
-1. Under **Routing query**, replace **true** with the query below:
+1. 要创建终结点，请在窗格的底部单击 **“创建”**。
+
+    验证和创建将需要一些时间。完成后，你应该回到 **“添加路由”** 边栏选项卡。
+
+1. 在 **“添加路由”** 边栏选项卡的 **“数据源”** 下，确保选中 **“设备遥测消息”** 。
+
+1. 在 **“启用路由”** 选项下， 确保 **“启用”** 已选定。
+
+1. 在 **“路由查询”** 下，将 **true** 替换为以下查询：
 
     ```sql
     sensorID = "VSLog"
     ```
 
-    This ensures that messages only follow this route if the `sensorID = "VSLog"`.
+    这样可以确保只有在 `sensorID = "VSLog"` 时，消息才会遵循此路线。
 
-1. To save this route, click **Save**. Wait for the success message.
+1. 要保存此路线，请单击 **“保存”**。
 
-    Once completed, the route should be listed on the **Message routing** blade.
+    等待成功消息。完成后，**“消息路由”** 边栏选项卡上应该会列出该路线。
 
-The next step will be to verify that the logging route is working.
+1. 导航回到 Azure 门户仪表板。
 
-## Exercise 4: Logging Route Azure Stream Analytics Job
+下一步将是验证日志记录路线是否正常工作。
 
-To verify that the logging route is working as expected, we will create a Stream Analytics job that routes logging messages to Blob storage. 
+### 练习 4：日志记录路由 Azure 流分析作业
 
-This will enable us to verify that our route includes the following settings:
+为了验证日志记录路由是否按预期工作，我们将创建一个流分析作业，将日志记录消息路由到 Blob 存储，然后可以使用 Azure 门户中的存储资源管理器对其进行验证。
 
-* **Name** - vibrationLoggingRoute
-* **Data Source** - DeviceMessages
-* **Routing query** - sensorID = "VSLog"
-* **Endpoint** - vibrationLogEndpoint
-* **Enabled** - true
+这将使我们能够验证我们的路由是否包括以下设置：
 
-### Task 1: Create the Stream Analytics Job
+* **名称** - 振动日志记录路由
+* **数据源** - 设备消息
+* **路由查询** - sensorID = "VSLog"
+* **终结点** - 振动记录终结点
+* **已启用** - true
 
-1. In the [Azure portal], select **+ Create a resource**. 
+> **注释**：在本实验室中，我们将数据路由到存储，然后再通过 Azure 流分析将数据发送到存储，这似乎很奇怪。在生产场景中，这两条路径不会长期存在。事实上，我们在此处创建的第二条路径很可能不存在。在实验室环境中，我们将使用这种方法来验证我们的路由是否正常工作，并展示 Azure 流分析的简单实现。
 
-2. Search for and select `Stream Analytics job`. Click **Create**.
+#### 任务 1：创建流分析作业
 
-    The **New Stream Analytics job** pane is displayed.
+1. 在 Azure 门户菜单上，单击“创建资源”**。
 
-3. On the **New Stream Analytics job** pane, under **Name**, enter `vibrationJob`.
+1. 在 **“新建”** 边栏选项卡上的 **“搜索市场”** 文本框中，输入 **“流分析作业”**，然后单击 **“流分析作业”**。
 
-4. Under **Subscription**, choose the subscription you are using for the lab.
+1. 在 **“流分析作业”** 边栏选项卡上，单击 **“创建”**。
 
-5. Under **Resource group**, select **AZ-220-RG**.
+    显示 **“新建流分析作业”** 窗格。
 
-6. Under **Location**, select the region you are using for all of your lab work.
+1. 在 **“新建流分析作业”** 窗格的 **“名称”** 下，输入 `vibrationJob`。
 
-7. Under **Hosting environment**, select **Cloud**.
+1. 在 **“订阅”** 下，选择将在本实验室中使用的订阅。
 
-    Edge hosting will be discussed later in the course.
+1. 在 **“资源组”** 下，选择 **AZ-220-RG**。
 
-8. Under **Streaming units**, reduce the number from **3** to **1**.
+1. 在 **“位置”** 下，选择用于完成所有实验室工作的区域。
 
-    This lab does not require 3 units and this will reduce costs.
+1. 在 **“托管环境”** 下，选择 **“云”**。
 
-9.  To create the streaming analytics job, click **Create**.
+    Edge 托管将在本课程的后面部分讨论。
 
-10. Wait for the **Deployment succeeded** message, then open the new resource.
+1. 在 **“流单元数”** 下，将数量从 **3** 减少到 **1**。
 
-    > **Tip:** If you miss the message to go to the new resource, or need to find a resource at any time, select **Home/All resources**. Enter enough of the resource name for it to appear in the list of resources.
+    本实验室不需要 3 个单元，此操作可降低成本。
 
-    You'll now see the empty job, showing no inputs or outputs, and a skeleton query. The next step is to populate these entries.
+1. 要创建流分析作业，请单击 **“创建”**。
 
-11. To create an input, in the left hand navigation, under **Job topology**, click **Inputs**.
+1. 等待 **“部署成功”** 消息，然后打开新资源。
 
-    The **Inputs** pane is displayed.
+    > **提示：**如果你错过了转到新资源的消息，或者需要随时查找资源，请选择 **“主页/所有资源”**。输入足够长的资源名称以使其出现在资源列表中。
 
-12. On the **Inputs** pane, click **+ Add stream input**, and select **IoT Hub** from the dropdown list.
+1. 花点时间检查新的流分析作业。
 
-    The **New Input** pane will be displayed.
+    请注意，你有一个不显示任何输入或输出的空作业以及一个框架查询。下一步是填充这些条目。
 
-13. On the **New Input** pane, under **Input alias**, enter `vibrationInput`.
+1. 要创建输入，请在左侧导航栏中的 **“作业拓扑结构”** 单击 **“输入”**。
 
-14. Ensure **Select IoT Hub from your subscriptions** is selected.
+    **“输入”** 窗格则会显示。
 
-15. Under **Subscription**, ensure the subscription you used to create the IoT Hub earlier is selected.
+1. 在 **“输入”** 窗格中单击 **“添加流输入”**，然后从下拉列表中选择 **“IoT 中心”** 。
 
-16. Under **IoT Hub**, select the IoT Hub you created at the beginning of the course labs, **AZ-220-HUB-_{YourID}_**.
+    **“新输入”** 窗格将会显示。
 
-17. Under **Endpoint**, ensure **Messaging** is selected.
+1. 在 **“新输入”** 窗格的 **“输入别名”** 中输入 `vibrationInput`。
 
-18. Under **Shared access policy name**, ensure **iothubowner** is selected.
+1. 选中**“从你的订阅中选择 IoT 中心”**。
 
-    > [!NOTE] The **Shared access policy key** is populated and read-only.
+1. 请确保在 **“订阅”** 中选中你先前用于创建 IoT 中心的订阅。
 
-19. Under **Consumer group**, ensure **$Default** is selected.
+1. 在 **“IoT 中心”** 选择在课程实验室开始时创建的 IoT 中心， 即 **“AZ-220-HUB-_{YourID}_”**。
 
-20. Under **Event serialization format**, ensure **JSON** is selected.
+1. 在 **“终结点”** 中选中 **“消息传送”**。
 
-21. Under **Encoding**, ensure **UTF-8** is selected.
+1. 在 **“共享访问策略名称”** 中，确保选中 **iothubowner**。
 
-22. Under **Event compression type**, ensure **None** is selected.
+    > **注释**：  **“共享访问策略密钥”** 已填充且为只读。
 
-23. To save the new input, click **Save**, then wait for the input to be created.
+1. 在 **“使用者组”** 下，确保选择 **$Default**。
 
-    The **Inputs** list should be updated to show the new input.
+1. 在 **“事件序列化格式”** 选项下， 确保 **“JSON”** 已选定。
 
-24. To create an output, in the left hand navigation, under **Job topology**, click **Outputs**.
+1. 在 **“编码”** 选项下， 确保 **“UTF-8”** 已选定。
 
-    The **Outputs** pane is displayed.
+    你可能需要向下滚动才能看到某些字段。
 
-25. On the **Outputs** pane, click **+ Add**, and select **Blob storage/Data Lake Storage Gen2** from the dropdown list.
+1. 在 **“事件压缩类型”** 下，确保选择 **“无”**。
 
-    The **New output** pane is displayed.
+1. 要保存新输入，请单击 **“保存”**，然后等待输入创建完毕。
 
-26. On the **New output** pane, under **Output alias**, enter `vibrationOutput`.
+    **“输入”** 列表应更新为显示新输入。
 
-27. Ensure **Select storage from your subscriptions** is selected.
+1. 要创建输出，请在左侧导航栏的 **“作业拓扑”** 下，单击 **“输出”**。
 
-28. Under **Subscription**, choose the subscription you are using for this lab.
+    将显示 **“输出”** 窗格。
 
-29. Under **Storage account**, choose the storage account you created earlier - **vibrationstore** plus your initials and date.
+1. 在 **“输出”** 窗格中，单击 **“添加”**，然后从下拉列表中选择 **“Blob 存储/Data Lake Storage Gen2” **。
 
-    > [!NOTE] The **Storage account key** is automatically populated and read-only.
+    随即将显示 **“新建输出”** 窗格。
 
-30. Under **Container**, ensure **Use existing** is selected and select **vibrationcontainer** from the dropdown list.
+1. 在 **“新建输出”**窗格的 **“输出别名”** 下，输入 `vibrationOutput`。
 
-31. Leave the **Path pattern** blank.
+1. 确保选择 **“从你的订阅中选择存储”**。
 
-32. Leave the **Date format** and **Time format** at their defaults.
+1. 在 **“订阅”** 下，选择你为本实验室使用的订阅。
 
-32. Under **Event serialization format**, ensure **JSON** is selected.
+1. 在 **“存储帐号”** 下，选择你之前创建的存储帐户 - **vibrationstore** 加上你的姓名首字母和日期。
 
-33. Under **Encoding**, ensure **UTF-8** is selected.
+    > **注释**：  **“存储帐户密钥”** 将自动填充且为只读。
 
-34. Under **Format**, ensure **Line separated**.
+1. 在 **“容器”** 下，确保选择了 **“使用现有”** ，并从下拉列表中选择了 **“振动容器”** 。
 
-    > [!NOTE] This setting stores each record as a JSON object on each line and, taken as a whole, results in a file that is an invalid JSON record. The other option, **Array**, ensures that the entire document is formatted as a JSON array where each record is an item in the array. This allows the entire file to be parsed as valid JSON.
+1. 将 **“路径模式”** 保留为空。
 
-35. Leave **Minimum rows** blank.
+1. 将 **“日期格式”** 和 **“时间格式”** 保留为各自的默认值。
 
-36. Leave **Minimum time Hours** and **Minutes** blank.
+1. 在 **“事件序列化格式”** 选项下， 确保 **“JSON”** 已选定。
 
-37. Under **Authentication mode**, ensure **Connection string** is selected.
+1. 在 **“编码”**选项下， 确保 **“UTF-8”** 已选定。
 
-38. To create the output, click **Save**, then wait for the output to be created.
+1. 在 **“格式”** 下，确保选择 **“按行分隔”**。
 
-    The **Outputs** list will be updated with the new output.
+    > **注释**：  此设置将每条记录整体作为一个 JSON 对象存储在每行上，最终导致文件是一个无效的 JSON 记录。另一个选项 **“数组”** 可确保将整个文档格式化为 JSON 数组，其中每条记录都是数组中的一项。这样就可以将整个文件解析为有效的 JSON。
 
-39. To edit the query, in the left hand navigation, under **Job topology**, click **Query**.
+1. 将 **“最小行数”** 保留为空白。
 
-40. In the query edit pane, replace the existing query with the query below:
+1. 将 **“最长时间”** 下的 **“小时”** 和 **“分钟”** 保留为空白。
+
+1. 在 **“身份验证模式”** 选项下，确保选择了 **“连接字符串”**。
+
+1. 要创建输出，请单击 **“保存”**，然后等待输出创建完毕。
+
+    使用新输出更新**输出**列表。
+
+1. 要编辑查询，请在左侧导航栏中的 **“作业拓扑”** 下，单击 **“查询”**。
+
+1. 在“查询编辑器”窗格中，将现有查询替换为以下查询：
 
     ```sql
     SELECT
@@ -761,48 +859,58 @@ This will enable us to verify that our route includes the following settings:
         vibrationInput
     ```
 
-41. Above the edit pane, in the toolbar, click **Save Query**.
+1. 在编辑窗格的上方，单击 **“保存查询”**。
 
-42. In the left hand navigation, click **Overview**.
+1. 在左侧导航栏中，单击 **“概述”**。
 
-### Task 2: Test the Logging Route
+#### 任务 2：测试日记记录路线
 
-Now for the fun part. Does the telemetry your device app is pumping out work its way along the route, and into the storage container?
+这部分很有趣。设备应用传出的遥测数据是否遵循该路线传入存储容器？
 
-1. Ensure the device app you create in Visual Studio Code is still running. If not, run it in the Visual Studio Code terminal using `dotnet run`.
+1. 确保你在 Visual Studio Code 中创建的设备应用仍在运行。 
 
-1. In the **vibrationJob** blade's **Overview** page, click **Start**.
-   
-2. In the **Start job** pane, leave the **Job output start time** at **Now**, and click **Start**.
+    如果未运行，请使用 `dotnet run` 在 Visual Studio Code 终端运行它。
 
-    It will take a few moments for the job to start.
+1. 在流分析作业的 **“概述”** 窗格中，单击 **“开始”**。
 
-3. Return to the [Azure Portal](https://portal.azure.com/#home).
+1. 在 **“开始作业”** 窗格中，将 **“作业输出开始时间”** 保留设置为 **“立即”**，然后单击 **“开始”**。
 
-4. Select the **vibrationstore** (plus your initials and date) resource from your resource group tile.  (If it's not visible, use the **Refresh** button at the top of the resource group tile.)
+    可能需要一些时间才能开始作业。
 
-6. On the **Overview** page, scroll down until you can see the **Monitoring** section.
+1. 在“Azure 门户中心”菜单上，单击 **“仪表板”**。
 
-7. Under **Monitoring**, adjacent to **Show data for last**, change the time range to **1 hour**. You should see activity in the charts.
+1. 在资源组图块上，选择 **“vibrationstore”** （加上你的姓名首字母和日期）存储帐户。
 
-8. For added reassurance that all the data is getting to the account, open the storage in **Storage Explorer (preview)**. You can find links to **Storage Explorer (preview)** in multiple locations; the easiest to find is probably in the left hand navigation area.
+    如果看不到你的存储帐户，请使用资源组图块顶部的 **“刷新”** 按钮。
 
-    > [!NOTE] The Storage Explorer is currently in preview mode, so its exact mode of operation may change.
+1. 在存储帐户的**“概览”**窗格中，向下滚动直至看到 **“监控”** 部分。
 
-9.  In **Storage Explorer (preview)**, under **BLOB CONTAINERS**, select **vibrationcontainer**.
+1. 在 **“监控”** 下的 **“显示上次的数据”**旁边，将时间范围更改为 **“1 小时”** 。
 
-10. To view the data, you will need to navigate down a hierarchy of folders. The first folder will be named for the IoT Hub, the next will be a partition, then year, month, day and finally hour. Within the hour folder, you will see files named for the minute they were generated.
+    你应该在图表中看到活动。
 
-11. To stop the Azure Streaming Analytics job, return to your portal dashboard and select **vibrationJob**.
+1. 在左侧导航菜单上，单击 **“存储资源管理器(预览版)”**。
 
-12. On the **Stream Analytics Job** page, click **Stop** and click **Yes** in the confirmation popup.
+    我们可以使用存储资源管理器进一步确保你的所有数据都将进入存储帐户。 
 
-You've traced the activity from the device app, to the hub, down the route, and to the storage container. Great progress!
+    > **注释**：  “存储资源管理器”当前处于预览模式，因此其确切的操作模式可能会更改。
 
-## Next Steps
+1. 在 **“存储资源管理器(预览版)”** 的 **“BLOB 容器”** 下，单击** vibrationcontainer**。
 
-The final part of this scenario requires that the telemetry data is sent to an EventHub for real-time analysis in PowerBI. We will cover this second part in the next lab, after you have been introduced to data visualization.
+    要查看数据，你需要向下浏览文件夹的层次结构。第一个文件夹将以 IoT 中心命名，下一个文件夹将是分区，然后是年、月、日，最后是小时。 
 
-You may wish to exit the device simulator app by pressing **CTRL-C** in the Visual Studio Code Terminal.
+1. 在右侧窗格的 **“名称”** 下，双击 IoT 中心的文件夹，然后继续双击以向下导航到层次结构，直到打开最新的小时文件夹。
 
-    >[!IMPORTANT] Do not remove these resources until you have completed the Data Visualization module of this course.
+    在小时文件夹中，你将看到以文件生成时的分钟命名的文件。
+
+1. 若要停止 Azure 流式处理分析作业，请返回门户仪表板，然后选择 **vibrationJob**。
+
+1. 在 **“流分析作业”** 页面上，单击 **“停止”**，然后单击 **“是”**。
+
+    你已经跟踪了从设备应用到中心到路线再到存储容器的活动。非常好！在下一个模块（即快速查看数据可视化）中，我们将继续此方案的流分析。
+
+1. 切换到 Visual Studio Code 窗口。
+
+1. 在终端命令提示符下，要退出设备模拟器应用，请按 **CTRL-C**。
+
+> **重要事项**：在完成本课程的数据可视化模块之前，请勿删除这些资源。

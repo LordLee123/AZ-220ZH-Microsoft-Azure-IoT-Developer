@@ -1,363 +1,391 @@
----
+﻿---
 lab:
-    title: 'Lab 08: Visualize a Data Stream in Power BI'
-    module: 'Module 4: Message Processing and Analytics'
+    title: '实验室 08：在 Power BI 中可视化数据流'
+    module: '模块 5：见解和业务集成'
 ---
 
-# Visualize a Data Stream in Power BI
+# 在 Power BI 中直观呈现数据流
 
-> [!NOTE] This lab is a continuation of Lab 7 - Device Message Routing. 
-
-> [!IMPORTANT] This lab has several service prerequisites that are not related to the Azure subscription you were given for the course:
-> 1. The ability to sign in to a "Work or School Account" (Azure Active Directory account)
-> 2. You must know your account sign-in name, which may not match your e-mail address.
-> 3. Access to Power BI, which could be through:
-    1. An existing Power BI account
-    2. The ability to sign up for Power BI - some organizations block this.
+> **注释**：  本实验室是“实验室 7 - 设备消息路由”的延续。
 >
-> The first lab exercise will validate your ability to access Power BI.  If you are not successful in the first exercise, you will not be able to complete the lab, as there is no quick workaround to this.
+> **重要事项**：本实验室具有若干与你为该课程获得的 Azure 订阅无关的服务先决条件：
+>
+> 1. 能够登录“工作或学校帐户”（Azure Active Directory 帐户）
+> 2. 你必须知道自己的帐户登录名，该名称可能不同于你的电子邮件地址。
+> 3. 可以通过以下方式访问 Power BI：
+>       1. 现有的 Power BI 帐户
+>       2. 能够注册 Power BI（一些组织禁止此操作）。
+>
+> 第一个实验室练习将验证你访问 Power BI 的能力。  如果第一个练习没有成功，则将无法完成该实验室，因为工作或学校帐户访问受阻时没有快速的替代方法。
 
-## Lab Scenario
+## 实验室场景
 
-You have developed a device simulator that generates vibration data and other telemetry outputs for a conveyor belt system that takes packages and drops them off in mailing bins. You have built and tested a logging route that sends dat to Azure Blob storage.
+你已经开发了一个模拟 IoT 设备，用来生成振动数据和其他遥测输出，这些信息表示在 Contoso 的奶酪包装过程中使用的传送带系统。你已经生成并测试了将数据发送到 Azure Blob 存储的日志记录路由。现在，你将开始在 IoT 中心内的新路由上进行工作，该路由会将遥测数据发送到 Azure 事件中心服务。
 
-The second route will be to an Event Hub, because an Event Hub is a convenient input to Stream Analytics. And Stream Analytics is a convenient way of handling anomaly detection, like the excessive vibration we're looking for in our scenario.
+Azure IoT 中心和 Azure 事件中心之间的主要区别在于，事件中心是针对大数据流式处理设计的，而 IoT 中心则是针对 IoT 解决方案进行了优化。两种服务都支持低延迟、高可靠性的数据引入。Azure 事件中心以类似于 IoT 中心的方式向流分析提供输入，因此这里你选择的事件中心使你能够在解决方案中探索其他 Azure 服务选项。
 
-This route will be created for the IoT Hub, then added as an input to the Azure Stream Analytics job.
+### 调用内置的机器学习模型
 
-We need to update the job to handle two inputs and two outputs, and a more complex query.
+我们要调用的内置机器学习 (ML) 函数是 `AnomalyDetection_SpikeAndDip`。
 
-The process of creating the second route follows a similar process to the first, though it diverges at the creation of an endpoint. An Event Hub is chosen as the endpoint for the telemetry route.
+`AnomalyDetection_SpikeAndDip` 函数会获取数据的滑动窗口，并检查是否存在异常。滑动窗口可以是最近两分钟的遥测数据。该滑动窗口可以近乎实时地同遥测流保持同步。如果滑动窗口的尺寸增加，则异常情况检测的准确度通常也会增加。延迟也一样。
 
-In this exercise, you will create an Event Hubs *namespace*. You then have to create an *instance* of the namespace to complete the setting up of an Event Hub. You can then use this instance as the destination for the new message route.
+随着数据流的继续，该算法将建立一个正常值范围，然后将新值与这些正常值进行比较。结果是每个值的百分比得分，用于确定给定值为异常的置信度。低置信度会被忽略，问题是什么百分比置信度的值可以接受？在我们的查询中，计划将该临界点设置为 95%。
 
-After the route is created, we move on to updating the query.
+总会有复杂状况出现，例如存在数据空白（可能是传送带停止运转片刻）。算法通过插补数值来处理数据空白。
 
-### Make a Call to a Built-in ML Model
+> **注释**：在统计学中，插补是用替换值替换缺失数据的过程。关于插补的更多信息，请点击[这里](https://en.wikipedia.org/wiki/Imputation_%28statistics%29)。
 
-The built-in function we're going to call is `AnomalyDetection_SpikeAndDip`.
+遥测数据的急剧上升和下降一种暂时性的异常。但是，由于我们正在处理正弦波的振动，因此可以预期，一小段“正常”值之后会出现较高值或较低值，从而触发异常警报。操作员正在寻找在短时间内出现的异常群集 。这种群集表明出现了异常状况。
 
-The `AnomalyDetection_SpikeAndDip` function takes a sliding window of data, and examines it for anomalies. The sliding window could be, say, the most recent two minutes of telemetry data. This sliding window keeps up with the flow of telemetry in close to real time. If the size of the sliding window is increased, generally the accuracy of anomaly detection will increase too. As will the latency.
+还存在其他内置 ML 模型，例如趋势检测模型。在本模块中我们不探讨这些模型，但我们鼓励学生做进一步研究。
 
-As the flow of data continues, the algorithm establishes a normal range of values, then compares new values against those norms. The result is a score for each value, a percentage that determines the confidence level that the given value is anomalous. Low confidence levels are ignored, the question is what percentage confidence value is acceptable? In our query, we're going to set this tipping point at 95%.
+### 使用 Power BI 实现数据的可视化效果
 
-There are always complications, like when there are gaps in the data (the conveyor belt stops for a while, perhaps). The algorithm handles voids in the data by imputing values.
+直观呈现数字数据（尤其是大量数据）本身就是一个难题。我们该如何向操作人员发出异常序列（可推断出有问题出现）的警报？
 
-Spikes and dips in telemetry data are temporary anomalies. However, as we're dealing with sine waves for vibration, we can expect a short period of "normal" values follow a high or low value that triggers an anomaly alert. The operator is looking for a cluster of anomalies occurring in a short time span. Such a cluster indicates something is wrong.
+我们在此模块中使用的解决方案是使用 Power BI 的某些内置功能，以及 Azure 流分析中以 Power BI 可以引入的实时格式发送数据的功能。
 
-There are other built-in ML models, such as a model for detecting trends. We don't include these models as part of this module, but the student is encouraged to investigate further.
+我们使用 Power BI 的仪表板功能来创建大量磁贴。一个磁贴包含实际的振动测量值。另一个磁贴是一个仪表，显示对异常值（从 0.0 到 1.0 ）的置信度。第三个磁贴指示置信度是否达到 95％。最后，第四个磁贴显示在过去一小时内检测到的异常数。通过将时间作为 x 轴，此磁贴可以清晰地显示出是否在短时间内连续检测到多个异常值，原因是这些异常值会在水平方向上聚集在一起。
 
-### Visualize data using Power BI
+第四个磁贴使你能够将异常值与遥测控制台窗口中的红色文本进行比较。当强制施加震动或者震动不断增加，又或者二者同时发生时，是否能够检测到异常现象？
 
-Visualizing numerical data, especially volumes of it, is a challenge in itself. How can we alert a human operator of the sequence of anomalies that infer something is wrong?
+将创建以下资源：
 
-The solution we use in this module is to use some built-in functionality of Power BI. And the ability of Azure Stream Analytics to send data in a real-time format that Power BI can ingest.
+![实验室 8 体系结构](media/LAB_AK_08-architecture.png)
 
-We use the dashboard feature of Power BI to create a number of tiles. One tile contains the actual vibration measurement. Another tile is a gauge, showing from 0.0 to 1.0 the confidence level that the value is an anomaly. A third tile indicates if the 95% confidence level is reached. The main tile though shows the number of anomalies detected over the past hour. This tile makes it clear if a clutch of anomalies were detected in short succession.
+## 本实验室概览
 
-The fourth tile includes time as the x-axis. This tile allows you to compare the anomalies with the red text in the telemetry console window. Is there a cluster of anomalies being detected when forced, or increasing, or both, vibrations are in action?
+在本实验室中，你将完成以下活动：
 
-Let's create the Event Hub, create the second route, update the SQL query, create a Power BI dashboard, and let it all run!
+* 注册 Power BI
+* 验证是否满足实验室先决条件（具有必需的 Azure 资源）
+* 实时分析遥测
+* 创建 Azure 事件中心服务
+* 创建实时消息路由
+* 向 IoT 中心添加遥测路由
+* 创建 Power BI 仪表板以直观呈现数据异常
 
+我们将创建事件中心，创建第二条路由，更新 SQL 查询，创建 Power BI 仪表板，然后全部运行！
 
+## 实验室说明
 
+### 练习 1：注册 PowerBI
 
+Power BI 可用作个人数据分析和可视化工具，也可用作小组项目、部门或整个公司的分析和决策引擎。在本实验室后面的部分中，将生成仪表板并使用 PowerBI 直观呈现数据。本练习说明了如何以个人身份注册 Power BI。
 
+>**注：**如果已拥有 PowerBI 订阅，则可跳至下一步。
 
+#### 任务 1：了解支持的电子邮件地址
 
+在开始注册过程之前，了解哪种电子邮件地址类型可用于注册 Power BI 很重要：
 
+* Power BI 要求使用工作或学校电子邮件地址进行注册。无法使用消费者电子邮件服务或电信提供商提供的电子邮件地址进行注册。这包括 outlook.com、hotmail.com、gmail.com 等。
 
+* 注册后，你可以[邀请来宾用户](https://docs.microsoft.com/azure/active-directory/active-directory-b2b-what-is-azure-ad-b2b)使用包括个人帐户在内的任何电子邮件地址查看 Power BI 内容。
 
+* 你可以使用 .gov 或 .mil 地址注册 Power BI，但过程会有所不同。有关更多信息，请参阅[在 Power BI 服务中注册美国政府组织](https://docs.microsoft.com/zh-cn/power-bi/service-govus-signup)。
 
+#### 任务 2：注册 Power BI 帐户
 
-## In This Lab
+请按照以下步骤注册 Power BI 帐户。完成注册后，你将获得一个 Power BI（免费）许可，你可以在“我的工作区”中自行试用 Power BI，使用分配给 Power BI Premium 容量的 Power BI 工作区中的内容或启动单个 Power BI Pro 试用版。
 
-This lab includes:
+1. 在浏览器中，导航到 [“注册页”](https://signup.microsoft.com/signup?sku=a403ebcc-fae0-4ca2-8c8c-7a907fd6c235)。
 
-* Sign-up for Power BI
-* Verify Lab Prerequisites
-* Analyze Telemetry in Real-Time
-* Create EventHub
-* Create Real-time Message Route
-* Add Telemetry Route
-* Create a dashboard to visualize data anomalies, using Power BI
+1. 在 **“开始使用”** 页面，输入受支持的电子邮件地址。
 
-## Exercise 1: Sign Up For PowerBI
+1. 如果看到一条要求证明你不是机器人的消息，请选择 **“给我发短信”** 或者 **“给我打电话”**，并提供相关信息以接收验证码，然后继续下一步操作。
 
-Power BI can be your personal data analysis and visualization tool, and can also serve as the analytics and decision engine behind group projects, divisions, or entire corporations. Later on in this lab, you will visualize data using PowerBI. This article explains how to sign up for Power BI as an individual.
+    ![你是机器人吗](./Media/LAB_AK_08-prove-robot.png)
 
->**Note:** If you already have a PowerBI subscription, you can skip to the next step.
+    相反，如果系统提示你已有帐户，请继续登录并准备使用 PowerBI。
 
-### Task 1: Understand Supported Email Addresses
+    ![你是机器人吗](./Media/LAB_AK_08-existing-account.png)
 
-Before you start the sign-up process, it's important to learn which types of email addresses that you can use to sign-up for Power BI:
+1. 检查手机短信或等着被呼叫，然后输入收到的验证码，最后单击 **“注册”**。
 
-* Power BI requires that you use a work or school email address to sign up. You can't sign up using email addresses provided by consumer email services or telecommunication providers. This includes outlook.com, hotmail.com, gmail.com, and others.
+    ![注册](./Media/LAB_AK_08-sign-up.png)
 
-* After you sign up, you can [invite guest users](https://docs.microsoft.com/azure/active-directory/active-directory-b2b-what-is-azure-ad-b2b) to see your Power BI content with any email address, including personal accounts.
+1. 检查电子邮件中是否有类似这样的消息。
 
-* You can sign-up for Power BI with .gov or .mil addresses, but this requires a different process. For more info, see [Enroll your US Government organization in the Power BI service](https://docs.microsoft.com/en-us/power-bi/service-govus-signup).
+    ![注册](./Media/LAB_AK_08-email-verification.png)
 
-### Task 2: Sign up for a Power BI Account
+1. 在下一屏中，输入个人信息和电子邮件中的验证码。选择一个区域，查看与该屏幕链接的策略，然后选择“开始”。
 
-Follow these steps to sign up for a Power BI account. Once you complete this process you will have a Power BI (free) license which you can use to try Power BI on your own using My Workspace, consume content from a Power BI workspace assigned to a Power BI Premium capacity or initiate an individual Power BI Pro Trial. 
+    ![注册](./Media/LAB_AK_08-create-account.png)
 
-1. In your browser, navigate to the [sign-up page](https://signup.microsoft.com/signup?sku=a403ebcc-fae0-4ca2-8c8c-7a907fd6c235).
+1. 然后你将前往 [“Power BI 登录页”](https://powerbi.microsoft.com/landing/signin/)，从这里开始使用 Power BI。
 
-1. On the **Get started** page, enter a supported email address.
+现在，你可以访问 Power BI，因此可以随时将实时遥测数据路由到 Power BI 仪表板。
 
-1. If you see a message requesting you prove you are not a robot, choose either **Text me** or **Call me** and supply the relevant information to receive a verification code, then continue to the next step in this procedure.
+### 练习 2：验证实验室先决条件
 
-    ![Are you a robot](../../Linked_Image_Files/M99-L07b-prove-robot.png)
+为了在 Power BI 仪表板中对 IoT 中心的实时流数据实现可视化效果，你需要能够发送遥测消息的真实或模拟 IoT 设备。幸运的是，你已在实验室 7 中创建了满足此要求的模拟设备。
 
-    If, instead, you are informed that you already have an account, continue to sign-in and you are ready to use PowerBI.
+在本练习中，你需要确保上一个实验室中的设备模拟器应用仍在运行。 
 
-    ![Are you a robot](../../Linked_Image_Files/M99-L07b-existing-account.png)
+> **注释**：如果尚未完成本课程的实验室 7，请立即完成。
 
-1. Check your phone texts or wait for the call, then enter the code that you received, then click **Sign up**.
+#### 任务 1：在 Visual Studio Code 中启动 "vibrationdevice" 应用
 
-    ![Sign Up](../../Linked_Image_Files/M99-L07b-sign-up.png)
+1. 打开 Visual Studio Code。
 
-1. Check your email for a message like this one.
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**。
 
-    ![Sign Up](../../Linked_Image_Files/M99-L07b-email-verification.png)
+1. 在“打开文件夹”对话框中，导航到 **“vibrationdevice”** 文件夹，然后单击 **“选择文件夹”**。
 
-1. On the next screen, enter your information and the verification code from the email. Select a region, review the policies that are linked from this screen, then select Start.
+    你可以看到“资源管理器”窗格中列出的“Program.cs”和“vibrationdevice.csproj”文件。
 
-    ![Sign Up](../../Linked_Image_Files/M99-L07b-create-account.png)
+    你可能需要验证设备的连接字符串是否已分配给 Program.cs 文件中的 `s_deviceConnectionString` 变量。如果已完成实验室 7，你会发现代码中存在类似于如下所述的变量分配：
 
-1. You're then taken to [Power BI sign in page](https://powerbi.microsoft.com/landing/signin/), and you can begin using Power BI.
+    ```csharp
+    s_deviceConnectionString = "HostName=AZ-220-HUB-CAH200509.azure-devices.net;DeviceId=VibrationSensorId;SharedAccessKey=nSUbphUKsS1jEd7INrEtmVWZesMBDIxzjVe4jn01KJI=";
+    ```
 
-Now you have access to Power BI, you are ready to route real-time telemetry data to a Power BI dashboard.
+1. 在 **“查看”** 菜单中，单击 **“终端”**。
 
-## Exercise 2: Verify Lab Prerequisites
-
-As we need some real-time telemetry, you need to ensure the Device Simulator app from the previous lab is running.
-
-1. In Visual Studio Code, to run the app in the terminal, enter the following command:
+    验证命令提示符是否显示**vibrationdevice**文件夹的文件夹路径。
+ 
+1. 要在终端中运行该应用，请输入以下命令：
 
     ```bash
     dotnet run
     ```
 
-   This command will run the **Program.cs** file in the current folder.
+   此命令将在当前文件夹中运行 **“Program.cs”** 文件。
 
-1. You should quickly see console output, similar to the following:
+1. 你应该很快就能看到控制台输出，类似于：
 
-    ![Console Output](../../Linked_Image_Files/M99-L07-vibration-telemetry.png)
+    ![控制台输出](./Media/LAB_AK_08-vibration-telemetry.png)
 
-    > [!NOTE] Green text is used to show things are working as they should and red text when bad stuff is happening. If you don't get a screen similar to this image, start by checking your device connection string.
+    > **注释**：  绿色文本表示一切正常，红色文本表示存在异常。如果没有得到类似于此图片显示的屏幕，请先检查设备连接字符串。
 
-1. Watch the telemetry for a short while, checking that it is giving vibrations in the expected ranges.
+1. 保持此应用持续运行。
 
-1. You can leave this app running, as it's needed for the next section.
+    遥测数据是数据可视化所必需的。
 
-## Exercise 3: Add Azure Event Hub Route and Anomaly Query
+### 练习 3：创建 Azure 事件中心服务
 
-In this exercise, we're going to add a query to the Stream Analytics job, and then use Microsoft Power BI to visualize the output from the query. The query searches for spikes and dips in the vibration data, reporting anomalies. We must create the second route, after first creating an instance of an Event Hubs namespace.
+既然遥测数据已经流式传输到 IoT 中心，接下来我们就可以将 Azure 事件中心命名空间和 Azure 事件中心实例添加到解决方案中。Azure 事件中心适合处理流数据，并支持实时仪表板方案 - 非常有利于将振动数据传递到 Power BI。
 
-### Task 1: Create an Event Hubs Namespace
+#### 任务 1：创建事件中心命名空间
 
-In this task, you will use the Azure portal to create an Event Hubs resource.
+在此任务中，将使用 Azure 门户创建事件中心资源。
 
-1. Login to [portal.azure.com](https://portal.azure.com) using your Azure account credentials.
+1. 使用你的 Azure 帐户凭据登录到 [portal.azure.com](https://portal.azure.com)。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. On the portal menu, click **+ Create a resource**.
+1. 在 Azure 门户中，单击 **“所有服务”**。
 
-    The Azure Marketplace is a collection of all the resources you can create in Azure. The marketplace contains resources from both Microsoft and the community.
+1. 在“搜索”文本框中，键入 **“事件”** 
 
-2. In the Search textbox, type **Event Hubs** and press **Enter**.
+1. 在搜索文本框下的搜索结果窗格，单击 **“事件中心”**。
 
-3. On the search results panel under the textbox, click **Event Hubs**.
+1. 要开始新建事件中心资源，请单击 **“创建事件中心命名空间”**。
 
-4. To begin the process of creating your new Event Hubs resource, click **Create event hubs namespace**.
+    将显示 **“创建命名空间”** 边栏选项卡。
 
-    The **Create Namespace** blade will be displayed.
+1. 在 **“创建命名空间”** 边栏选项卡上的 **“名称”** 字段下，输入 **“vibrationNamespace”**，并附带唯一标识符
 
-5. On the **Create Namespace** blade, under **Name**, enter **vibrationNamespace** plus a unique identifier (your initials and today's date) - i.e. **vibrationNamespaceCAH191212**
+    可以使用自己的姓名首字母缩写和当前日期创建唯一名称，此处命名为 **“vibrationNamespaceCAH191212”** 
 
-    This name must be globally unique.
+    该名称必须具备全局唯一性。
 
-6. Under **Pricing tier**, select **Standard**.
+1. 在 **“定价层”** 下，选择 **“标准”**。
 
-   > [!NOTE] Choosing the standard pricing tier enables _Kafka_. The Event Hubs for Kafka feature provides a protocol head on top of Azure Event Hubs that is binary compatible with Kafka versions 1.0 and later for both reading from and writing to Kafka topics. You can learn more about Event Huibs and Apache Kafka [here](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-for-kafka-ecosystem-overview). We will not be using Kafka in this lab.
+   > **注释**：  如果选择标准定价层，将启用“Kafka”__。Kafka 的事件中心功能在 Azure 事件中心的基础上提供了与 Kafka 1.0 及更高版本二进制兼容的协议头，用于读取和写入 Kafka 主题。如需了解有关事件中心和 Apache Kafka 的更多信息，请单击[此处](https://docs.microsoft.com/zh-cn/azure/event-hubs/event-hubs-for-kafka-ecosystem-overview)。本实验室中不会使用 Kafka。
 
-7. Leave **Make this namespace zone redundant** unchecked.
+1. 让 **“使此命名空间区域冗余”** 复选框保持未选中状态。
 
-    > [!NOTE] Checking this option enables enhanced availability by spreading replicas across availability zones within one region at no additional cost - however we don't need this capability for the lab.
+    > **注释**：  选中此选项可将副本散布到一个区域内的多个可用性区域中，在增强可用性的同时又无需增加额外成本，但我们在实验室中不需要该功能。
 
-8. Under **Subscription**, select the subscription you are using for this lab.
+1. 在 **“订阅”** 下，选择你为本实验室使用的订阅。
 
-9. Under **Resource group**, select the resource group you are using for this lab - **AZ-220-RG**.
+1. 在 **“资源组”** 下，选择用于本实验室的资源组 - **AZ-220-RG**。
 
-10. Under **Location**, choose the region you are using for all lab work.
+1. 在 **“位置”** 下，选择要在所有实验室中使用的区域。
 
-11. Under **Throughput units**, set the value to 1.
+1. 在 **“吞吐量单位”** 下，将值设置为 1。
 
-    This lab does not generate sufficient data to warrant increasing the number of units.
+    本实验室没有生成足够数据，因此不能增加单位数量。
 
-12. Leave **Enable Auto-Inflate** unchecked.
+1. 取消勾选 **“启用自动膨胀”** 复选框。
 
-    > [!NOTE] Auto-Inflate automatically scales the number of Throughput Units assigned to your Event Hubs Namespace when your traffic exceeds the capacity of the Throughput Units assigned to it. You can specify a limit to which the Namespace will automatically scale. We do not require this feature for this lab.
+    > **注释**：  当流量超出为事件中心命名空间分配的吞吐量单位容量时，“自动膨胀”会自动缩放分配给该命名空间的吞吐量单位数量。你可以指定命名空间自动缩放的限制。在本实验室中，我们不需要该功能。
 
-13. To create the resource, click **Create**, and wait for the resource to be deployed. This can take a few minutes.
+1. 要创建资源，请单击 **“创建”**，然后等待资源部署完成。
 
-Now we have an Event Hubs Namespace, we can create and Event Hubs instance.
+    部署将花费几分钟时间。可以打开“通知”窗格以监视进度。 
 
-### Task 2: Create an Event Hubs Instance
+    得到事件中心命名空间后，你可以创建事件中心实例。
 
-1. Navigate back to the Azure Portal home page.
+#### 任务 2：创建事件中心实例
 
-1. In your resource group tile, select your Event Hub namespace, e. g. **vibrationNamespaceCAH191212**.  (If it is not visible, refresh the tile.)
+1. 导航回 Azure 门户仪表板页面。
 
-    The **Overview** pane of the **Event Hubs Namespace** blade will be displayed.
+1. 在资源组磁贴上，选择你的事件中心命名空间。
 
-2. To create an Event Hubs Instance, at the top of the pane, click **+ Event Hub**.
+    如果未列出事件中心命名空间，请刷新磁贴。
 
-    The **Create Event Hub** blade will be displayed.
+    将显示 **“事件中心命名空间”** 边栏选项卡上的 **“概述”** 窗格。
 
-3. On the **Create Event Hub** blade, under **Name**, enter **vibrationeventhubinstance**.
+1. 要创建事件中心实例，请在窗格顶部单击 **“+ 事件中心”**。
 
-4. Leave **Partition Count** set to **1**.
+    将显示 **“创建事件中心”** 边栏选项卡。
 
-    > [!NOTE] Partitions are a data organization mechanism that relates to the downstream parallelism required in consuming applications. The number of partitions in an event hub directly relates to the number of concurrent readers you expect to have. You can increase the number of partitions beyond 32 by contacting the Event Hubs team. The partition count is not changeable, so you should consider long-term scale when setting partition count. In this lab, we only require 1.
+1. 在 **“创建事件中心”** 边栏选项卡上的 **“名称”** 字段下，输入 **“vibrationeventhubinstance”**。
 
-5. Leave **Message Retention** set to **1**.
+1. 将 **“分区计数”** 设为 **“1”**。
 
-    > [!NOTE] This is the retention period for events. You can set the retention period between 1 and 7 days. For this lab, we only require the minimum retention.
+    > **注释**：  分区是一种与使用应用程序所需的下游并行性有关的数据组织机制。事件中心中的分区数直接与你期望拥有的并发读取器数相关。你可以通过联系事件中心团队将分区数增加到 32 以上。分区计数不可更改，因此在设置分区计数时应考虑长远缩放。在本实验室中，我们只需要 1。
 
-6. Leave **Capture** set to **Off**.
+1. 将 **“消息保留期”** 设为 **“1”**。
 
-    > [!NOTE] Azure Event Hubs Capture enables you to automatically deliver the streaming data in Event Hubs to an Azure Blob storage or Azure Data Lake Store account of your choice, with the added flexibility of specifying a time or size interval. We do not require this feature for the lab.
+    > **注释**：  这是事件的保留期。你可以将保留期设置为 1 到 7 天。对于本实验室，只需最短保留期即可。
 
-7. To create the Azure Hubs Instance, click **Create**. Wait for the resource to be deployed.
+1. 保持 **“捕获”** 设置为 **“关闭”** 状态。
 
-## Exercise 4: Create Real-Time Message Route
+    > **注释**：  通过 Azure 事件中心捕获，你可自动向所选的 Azure Blob 存储或 Azure Data Lake Store 帐户传送事件中心的流数据，可更灵活地指定时间或大小间隔。本实验室不需要此功能。
 
-Now that we have an Event Hubs Namespace and an Event Hub, we can start to build the route itself.
+1. 要创建 Azure Hubs 实例，请单击 **“创建”**。等待部署资源
 
-## Create a Route to an Event Hub
+### 练习 4：创建实时消息路由
 
-In this task we will add a message route to our IoT Hub that will send telemetry messages to the Event Hub Instance we just created.
+既然有了事件中心命名空间和事件中心服务，接下来我们就需要将遥测数据从 IoT 中心传递到事件中心。
 
-1. Navigate to your Azure Portal dashboard, and select your IoT Hub **AZ-220-HUB-*{YOURID}***) from the resource group tile.
+#### 任务 1：创建遥测路由
 
-    The **Overview** blade for the IoT Hub will be displayed.
+在此任务中，我们将向 IoT 中心添加消息路由，用来将遥测消息发送到我们刚刚创建的事件中心实例。
 
-1. On the **Overview** blade, in the left hand navigation, under **Messaging**, select **Message routing**.
+1. 导航到 Azure 门户仪表板，然后从资源组图块中选择 IoT 中心**AZ-220-HUB-*{YOURID}***)。
 
-1. On the **Message routing** pane, to add a new message route, click **+ Add**.
+    将显示 IoT 中心的 **“总览”** 窗格。
 
-1. On the **Add a route** blade, under **Name**, enter **vibrationTelemetryRoute**.
+1. 在 **“总览”** 窗格左侧导航菜单中的 **“消息传送”** 下， 选择 **“消息路由”**。
 
-2. To the right of the **Endpoint** dropdown, click **+ Add endpoint**. This time, select **Event hubs** for the type of endpoint.
+1. 在 **“消息路由”** 窗格中单击 **“+ 新增”** 以添加新的消息路由。
 
-3. On the **Add an event hub endpoint** blade, under **Endpoint name**, enter **vibrationTelemetryEndpoint**.
+1. 在 **“添加路由”** 边栏选项卡的 **“名称”** 字段下，输入 **“vibrationTelemetryRoute”**。
 
-4. Under **Event hub namespace**, select the namespace you created earlier - i.e. **vibrationNamespaceCAH191212**.
+1. 在 **“终结点”** 下拉菜单右侧，单击 **“+ 新增终结点”**，然后单击 **“事件中心”**。
 
-5. Under **Event hub instance**, select the namespace you created earlier - i.e. **vibrationeventhubinstance**.
+1. 在 **“添加事件中心终结点”** 边栏选项卡的 **“终结点名称”** 下，输入 **“vibrationTelemetryEndpoint”**。
 
-6. To create the endpoint, click **Create**, and wait for the success message.
+1. 在 **“事件中心命名空间”** 下选择之前创建的命名空间。
 
-    You will be returned to the **Add a route** blade and the **Endpoint** value will have been updated.
+    它应类似于：**vibrationNamespaceCAH191212**
 
-7. Under **Data source**, ensure **Device Telemetry Messages** is selected.
+1. 在 **“事件中心实例”** 选项下，单击 **“vibrationeventhubinstance”**。
 
-8. Under **Enable route**, ensure **Enable** is selected.
+1. 要创建终结点，请单击 **“创建”**，然后等待成功消息。
 
-9. Under **Routing query**, replace the existing query with the following:
+    你将返回到 **“添加路由”** 边栏选项卡，此时的 **“终结点”** 值已被更新。
+
+1. 在 **“数据源”** 选项下， 确保 **“设备遥测消息”** 已选定。
+
+1. 在 **“启用路由”** 选项下， 确保 **“启用”** 已选定。
+
+1. 在 **“路由查询”** 选项下，将现有查询替换为：
 
     ```sql
     sensorID = "VSTel"
     ```
 
-    You may recall that the earlier sent "VSLog" messages to the logging storage. This message route will be sending "VSTel" (the telemetry) to the Event Hubs Instance.
+    你可能还记得上一个查询已将 "VSLog" 消息发送到日志记录存储了。此消息路由将向事件中心实例发送 "VSTel" （遥测）。
 
-10. To create the message route, click **Save**.
+1. 要创建消息路由，请单击 **“保存”**。
 
-11. Once the **Message routing** blade is displayed, verify you have two routes that match the following:
+1. 显示 **“消息路由”** 边栏选项卡之后，验证你的两个路由是否符合以下条件：
 
-    | Name | Data Source | Routing Query | Endpoint | Enabled |
+    | 名称 | 数据源 | 路由查询 | 终结点 | 已启用 |
     |:-----|:------------|:--------------|:---------|:--------|
     |`vibrationLoggingRoute`|`DeviceMessages`|`sensorID = "VSLog"`|`vibrationLogEndpoint`|`true`|
     |`vibrationTelemetryRoute`|`DeviceMessages`|`sensorID = "VSTel"`|`vibrationTelemetryEndpoint`|`true`|
 
-We are now ready to update the Azure Stream Analytics job to hand the real-time device telemetry.
+现在，我们准备更新 Azure 流分析作业，以进行实时设备遥测。
 
-## Exercise 5: Add Telemetry Route
+### 练习 5：添加遥测路由
 
-With this new IoT Hub route in place, we need to update our Stream Analytics job to handle the telemetry stream.
+添加此全新 IoT 中心路由，并将遥测数据流式传输到事件中心后，我们需要更新流分析作业。此作业需要使用来自事件中心的数据，并使用 **AnomalyDetection_SpikeAndDip** ML模型执行分析，然后将结果输出到 Power BI。
 
-### Task 1: Add a New Input to the Job
+#### 任务 1：将新输入添加到作业
 
-1. Return to your Azure Portal dashboard, and click on the **vibrationJob** you created in an earlier section.
+1. 返回 Azure 门户仪表板
 
-    The **Stream Analytics Job** blade will open displaying the **Overview** pane.
+1. 在资源组磁贴上，单击 **“vibrationJob”**。
 
-1. In the left hand navigation, under **Job topology**, click **Inputs**.
+    这是你在上一个实验室中创建的流分析作业。
+ 
+    **“流分析作业”** 边栏选项卡将打开，并显示 **“概述”** 窗格。
 
-1. On the **Inputs** pane, click **+ Add stream input** and then select **Event Hub**.
+    > **注释**：确保作业状态为**已停止**。
 
-1. On the **Event Hub** pane, under **Input alias**, enter **vibrationEventInput**
+1. 在左侧导航菜单中的 **“作业拓扑”** 下，单击 **“输入”**。
 
-1. Ensure **Select Event Hub from your subscriptions** is selected.
+1. 在 **“输入”** 窗格中，单击 **“+ 添加流输入”**，然后单击 **“事件中心”**。
 
-1. Under **Subscription**, select the subscription you have been using for this lab.
+1. 在 **“事件中心”** 窗格的 **“输入别名”** 下，输入 **“vibrationEventInput”** 
 
-1. Under **Event Hub namespace**, select the namespace you entered in the previous section.
+1. 确保 **“从订阅中选择事件中心”** 已选定。
 
-1. Under **Event Hub name**, ensure **Use existing** is selected and then select the Event Hub instance you created in the previous section - **vibrationeventhubinstance**.
+1. 在 **“订阅”** 选项下，选择你为此实验室使用的订阅。
 
-1. Under **Event Hub policy name**, ensure **RootManageSharedAccessKey** is selected.
+1. 在 **“事件中心命名空间”** 选项下，选择你在上一节中输入的“命名空间”。
 
-    > [!NOTE] The **Event Hub policy key** is populated and read-only.
+1. 在 **“事件中心名称”** 选项下， 确保 **“使用现有名称”** 已选定，并且你在上一节中创建的事件中心实例也已选定。
 
-1. Under **Event Hub Consumer group**, leave it blank - this will use the `$Default` Consumer group.
+     **“vibrationeventhubinstance”** 可能已经为你选定。
 
-1. Under **Event serialization format**, ensure **JSON** is selected.
+1. 在 **“事件中心策略名称”** 选项下，单击 **“使用现有名称”**，然后确保 **“RootManageSharedAccessKey”** 已选定。
 
-1. Under **Encoding**, ensure **UTF-8** is selected.
+    > **注释**：  **事件中心策略密钥**已填充，且为只读状态。
 
-1. Under **Event compression type**, ensure **None** is selected.
+1. 在 **“事件中心使用者组”** 选项下，单击 **“使用现有组”**，然后确保 `$Default` 已选定。
 
-1. To save the new input, click **Save**. Wait for the input to be created.
+1. 在 **“事件序列化格式”** 选项下， 确保 **“JSON”** 已选定。
 
-    The **Inputs** list should be updated to show the new input.
+1. 在 **“编码”** 选项下， 确保 **“UTF-8”** 已选定。
 
-### Task 2: Add a New Output
+1. 在 **“事件压缩类型”** 选项下， 确保 **“无”** 已选定。
 
-1. To create an output, in the left hand navigation, under **Job topology**, click **Outputs**.
+1. 要保存新输入，请单击 **“保存”**，然后等待输入创建完毕。
 
-    The **Outputs** pane is displayed.
+    更新**输入**列表以显示新输入 **vibrationEventInput**。
 
-1. On the **Outputs** pane, click **+ Add**, and select **Power BI** from the dropdown list.
+#### 任务 2：添加新输出
 
-    The **Power BI** pane is displayed.
+1. 要创建输出，请在左侧导航菜单中的 **“作业拓扑”** 选项下，单击 **“输出”**。
 
-1. Authorize the connection using the Power BI account you created earlier (or an existing account).
+    将显示 **“输出”** 窗格。
 
-1. On the **New output** pane, under **Output alias**, enter **vibrationBI**.
+1. 在 **“输出”** 窗格中，单击 **“+ 添加”**，然后单击 **“Power BI”**。
 
-1. Under **Group workspace**, select the workspace you wish to use.  If this is a brand new account, this dropdown will be greyed out.  If you have an existing account, choose an appropriate workspace, or ask your instructor for assistance.
+    将显示 **“Power BI”** 窗格。
 
-1. Under **Dataset name**, enter **vibrationDataset**.
+1. 使用先前创建的 Power BI 帐户（或现有帐户）授权连接。
 
-1. Under **Table name**, enter **vibrationTable**.
+1. 在 **“新建输出”** 窗格中的 **“输出别名”** 选项下，输入 **“vibrationBI”**。
 
-1. Under **Authentication mode**, select **User token**, and read the note that appears about revoking access.
+1. 在 **“组工作区”** 选项下，选择要使用的工作区。
 
-1. To create the output, click **Save**. Wait for the output to be created.
+    如果是新帐户，此下拉列表将显示为灰色。  如果已有帐户，请选择合适的工作区，或向讲师求助。
 
-    The **Outputs** list will be updated with the new output.
+1. 在 **“数据集名称”** 选项下，输入 **“vibrationDataset”** 
 
-## Update the SQL query for the Job
+1. 在 **“表名”** 选项下，输入 **“vibrationTable”** 
 
-1. In the left hand navigation, under **Job topology**, click **Query**.
+1. 在 **“身份验证模式”** 选项下，单击 **“用户令牌”**，然后阅读有关撤消访问权限的说明。
 
-1. Copy and paste the following SQL query, *before* the existing short query.
+1. 要创建输出，请单击 **“保存”**，然后等待输出创建完毕。
+
+    使用新输出更新**输出**列表。
+
+#### 任务 3：更新作业的 SQL 查询
+
+1. 在左侧导航菜单中的 **“作业拓扑”** 选项下，单击 **“查询”**。
+
+1. 复制以下 SQL 查询，然后将其粘贴到现有短查询的*上方*。
 
     ```sql
     WITH AnomalyDetectionStep AS
@@ -380,9 +408,9 @@ With this new IoT Hub route in place, we need to update our Stream Analytics job
     FROM AnomalyDetectionStep
     ```
 
-    > [!NOTE] This first section of this query takes the vibration data, and examines the previous 120 seconds worth. The `AnomalyDetection_SpikeAndDip` function will return a `Score` parameter, and an `IsAnomaly` parameter. The score is how certain the ML model is that the given value is an anomaly, specified as a percentage. If the score exceeds 95%, the `IsAnomaly` parameter has a value of 1, otherwise `IsAnomaly` has a value of 0. Notice the 120 and 95 parameters in the first section of the query. The second section of the query sends the time, vibration, and anomaly parameters to `vibrationBI`.
+    > **注释**：  该查询的第一部分用于获取振动数据，并检查前 120 秒的数据。`AnomalyDetection_SpikeAndDip` 函数将返回一个 `Score` 参数和一个 `IsAnomaly` 参数。分值表示 ML 模型能在多大程度上确定以百分比指定的给定值是异常值。如果分数超过 95%，则 `IsAnomaly` 参数的值为 1，否则 `IsAnomaly` 参数的值为 0。注意查询第一部分中的 120 和 95 参数。查询的第二部分将时间、振动和异常参数发送到 `vibrationBI`。
 
-1. Verify that the query editor on lists 2 Inputs and Outputs:
+1. 验证查询编辑器现在是否列出 2 个输入和输出：
 
     * `Inputs`
       * `vibrationEventInput`
@@ -391,169 +419,170 @@ With this new IoT Hub route in place, we need to update our Stream Analytics job
       * `vibrationBI`
       * `vibrationOutput`
 
-    If you see more than 2 of each then you likely have a typo in your query or in the name you used for the input or output - correct the issue before moving on.
+    如果你看到二者数量皆超过 2 个，可能是在查询中或者输入或输出名称中存在拼写错误，需要先更正错误再继续下一步。
 
-1. To save the query, click **Save query**.
+1. 要保存查询，请单击 **“保存查询”**。
 
-1. In the left navigation area, to navigate back to the home page of the job, click **Overview**.
+1. 要导航回到作业主页，请在左侧导航菜单中单击 **“概述”**。
 
-2. To start the job again, click **Start** and then, at the bottom of the **Start job** pane, click **Start**.
+1. 要重新开始作业，请单击 **“开始”**，然后在 **“开始作业”** 窗格底部单击 **“开始”**。
 
-In order for a human operator to make much sense of the output from this query, we need to visualize the data in a friendly way. One way of doing this visualization is to create a Power BI dashboard.
+为使人工操作员能够清楚地理解此查询的输出，我们需要以一种友好的方式实现数据的可视化效果。实现这种可视化效果的一种方法是创建 Power BI 仪表板。
 
-## Exercise 6: Create a Power BI Dashboard
+### 练习 6：创建 Power BI 仪表板
 
-Now let's create a dashboard to visualize the query, using Microsoft Power BI.
+现在进行方案的最终部分 - 数据可视化的实际过程。我们已经更新了作业，以通过 ML 模型处理振动遥测并将结果输出到 Power BI。在 Power BI 中，我们需要创建一个包含许多磁贴的仪表板，用来将结果可视化并为操作员提供决策支持。
 
-1. In your browser, navigate to https://app.powerbi.com/.
+#### 任务 1：新建仪表板
 
-1. Once Power BI has opened, using the left navigation area, select the workspace you chose above.
+1. 在浏览器中，导航到 [https://app.powerbi.com/](https://app.powerbi.com/)。
 
-    > [!NOTE] At the time of writing a *New Look* is in preview. The steps in this task have been written assuming the *New Look* is **Off**. To turn off the *New Look*, at the top right of the screen, ensure the toggle reads **New look off**.
+1. 打开 Power BI 后，使用左侧的导航区域，选中你在以上步骤中选择的工作区。
 
-1. Under **Datasets** verify that `vibrationDataset` is displayed. If not, you might have to wait a short time for this list to populate.
+    > **注释**：  写入时，Power BI 预览中会显示 *“新外观”*。此任务中的所有步骤均假设 *“新外观”* 设为 **“关”**。要关闭 *“新外观”*，请确保屏幕顶部工具栏上的切换开关显示为 **“新外观关闭”**。 
 
-1. At the top right of the page, click **+ Create** and select **Dashboard** from the dropdown list.
+1. 在 **“数据集”** 选项卡中，确认显示 **“vibrationDataset”**。
 
-1. In the **Create dashboard** popup, under **Dashboard name**, enter **Vibration Dash**.
+    如果不能，你可能需要等候片刻才能填充此列表。
 
-1. To create the dashboard, click **Create**.
+1. 在页面右上角，单击 **“+ 创建”**，然后单击 **“仪表板”**。
 
-    The new dashboard will be displayed as an essentially blank page.
+1. 在 **“创建仪表板”** 弹出窗口的 **“仪表板名称”** 下，输入 **“Vibration Dash”** 
 
-## Add the Vibration Gauge Tile
+1. 要创建仪表板，请单击 **“创建”**。
 
-1. To add the vibration gauge, at the top of the blank dashboard, click **+ Add tile**.
+    新仪表板将显示为基本上是空白的页面。
 
-1. In the **Add tile** pane, under **REAL-TIME DATA**, click **Custom Streaming Data** and then click **Next** at the bottom of the pane.
+#### 任务 2：添加振动仪表磁贴
 
-1. On the **Add a custom streaming data tile** pane, under **YOUR DATASETS**, click **vibrationDataset** and click **Next**.
+1. 要添加振动仪表，在空白仪表板顶部单击 **“+ 添加磁贴”**。
 
-    The pane will refresh to allow you to choose a visualization type and fields.
+1. 在 **“添加磁贴”** 窗格中的 **“实时数据”** 下，单击 **“自定义流数据”**，然后单击 **“下一个”**。
 
-1. Under **Visualization Type**, select **Gauge**.
+1. 在 **“添加自定义流数据磁贴”** 窗格中的 **“你的数据集”** 下，单击 **“vibrationDataset”**，然后单击 **“下一步”**。
 
-    Notice that changing the visualization type changes the fields below.
+    窗格将刷新，使你能够选择可视化类型和字段。
 
-1. Under **Value**, click **+ Add value** and select **Vibe** from the dropdown.
+1. 在 **“震动类型”** 下，打开下拉菜单，然后单击 **“仪表”**。
 
-    Notice that the gauge appears immediately on the dashboard with a value that begins to update!
+    请注意，更改可视化类型将更改以下字段。
 
-1. To move to the tile details, click **Next**.
+1. 在 **“值”** 下，单击 **“+ 添加值”**，打开下拉菜单，然后单击 **“vibe”**。
 
-1. In the **Tile details** pane, under **Title**, enter **Vibration**.
+    注意，仪表会立即显示在仪表板上，并且其值开始更新！
 
-1. Leave the remaining fields as they are and click **Apply**.
+1. 要显示“磁贴详细信息”窗格，请单击 **“下一步”**。
 
-    If you see a notification about creating a phone view, you can ignore it and it will disappear shortly (or dismiss it yourself).
+1. 在 **“磁贴详细信息”** 窗格中，在 **“标题”** 下输入 **“振动”**。
 
-1. To reduce the size of the tile, move your mouse over the bottom-right corner of the tile and click-and-drag the resize icon. Make the tile as small as you can.
+1. 要将其余字段保留为默认值并关闭窗格，请单击 **“应用”**。
 
-### Add the SpikeAndDipScore Clustered Bar Chart Tile
+    如果看到有关创建电话视图的通知，你可以忽略，它很快就会消失（或者你自行关闭）。
 
-1. To add the SpikeAndDipScore Clustered Bar Chart, at the top of the blank dashboard, click **+ Add tile**.
+1. 要减小磁贴大小，请将鼠标悬停在磁贴的右下角，然后单击并拖动调整大小的鼠标指针。
 
-1. In the **Add tile** pane, under **REAL-TIME DATA**, click **Custom Streaming Data** and then click **Next** at the bottom of the pane.
+    尽可能地缩小磁贴的大小。它将对齐到各种预设大小。
 
-1. On the **Add a custom streaming data tile** pane, under **YOUR DATASETS**, click **vibrationDataset** and click **Next**.
+#### 任务 3：添加 SpikeAndDipScore 群集条形图磁贴
 
-    The pane will refresh to allow you to choose a visualization type and fields.
+1. 若要添加 SpikeAndDipScore 群集条形图，请在空白仪表板顶部单击 **“+添加磁贴”**。
 
-1. Under **Visualization Type**, select **Clustered bar chart**.
+1. 在 **“添加磁贴”** 窗格中的 **“实时数据”** 下，单击 **“自定义流数据”**，然后单击 **“下一个”**。
 
-    Notice that changing the visualization type changes the fields below.
+1. 在 **“添加自定义流数据磁贴”** 窗格中的 **“你的数据集”** 下，单击 **“vibrationDataset”**，然后单击 **“下一步”**。
 
-1. Skip the **Axis** and **Legend** fields - we don't need them.
+1. 在 **“可视化效果类型”** 选项下，打开下拉列表，然后单击 **“簇状条形图”**。
 
-1. Under **Value**, click **+ Add value** and select **SpikeAndDipScore** from the dropdown.
+    请注意，更改可视化类型将更改以下字段。
 
-    Notice that the chart appears immediately on the dashboard with a value that begins to update!
+1. 跳过 **“轴”** 和 **“图例”** 字段，我们不需要它们。
 
-1. To move to the tile details, click **Next**.
+1. 在 **“值”** 选项下，单击 **“+ 添加值”**，打开下拉列表，然后单击 **“SpikeAndDipScore”**。
 
-1. This time, we don't need to enter a **Title** as the value label is sufficient.
+1. 要显示“磁贴详细信息”窗格，请单击 **“下一步”**。
 
-1. Leave the remaining fields as they are and click **Apply**.
+1. 这次不需要输入**标题**，因为有充足的值标签。
 
-    If you see a notification about creating a phone view, you can ignore it and it will disappear shortly (or dismiss it yourself).
+1. 要关闭“磁贴详细信息”窗格，请单击 **“应用”**。
 
-1. Again, reduce the size of the tile by moving your mouse over the bottom-right corner of the tile and click-and-drag the resize icon. Make the tile as small as you can.
+    如果看到有关创建电话视图的通知，你可以忽略，它很快就会消失（或者你自行关闭）。
 
-## Add the IsSpikeAndDipAnomaly Card Tile
+1. 再次提示，减小磁贴的大小，越小越好。
 
-1. To add the IsSpikeAndDipAnomaly Card, at the top of the blank dashboard, click **+ Add tile**.
+#### 任务 4：添加 IsSpikeAndDipAnomaly 卡片磁贴
 
-1. In the **Add tile** pane, under **REAL-TIME DATA**, click **Custom Streaming Data** and then click **Next** at the bottom of the pane.
+1. 要添加 IsSpikeAndDipAnomaly 卡片，请在空白仪表板顶部单击 **“+ 添加磁贴”**。
 
-1. On the **Add a custom streaming data tile** pane, under **YOUR DATASETS**, click **vibrationDatset** and click **Next**.
+1. 在 **“添加磁贴”** 窗格中的 **“实时数据”** 下，单击 **“自定义流数据”**，然后单击 **“下一个”**。
 
-    The pane will refresh to allow you to choose a visualization type and fields.
+1. 在 **“添加自定义流数据磁贴”** 窗格中的 **“你的数据集”** 选项下，单击 **“vibrationDatset”**，然后单击 **“下一步”**。
 
-1. Under **Visualization Type**, select **Card**.
+    窗格将刷新，使你能够选择可视化类型和字段。
 
-1. Under **Value**, click **+ Add value** and select **IsSpikeAndDipAnomaly** from the dropdown.
+1. 在 **“可视化类型”** 下，打开下拉列表，然后单击 **“卡”**。
 
-    Notice that the chart appears immediately on the dashboard with a value that begins to update!
+1. 在 **“值”** 下，单击 **“+ 添加值”**，打开下拉菜单，然后单击 **“IsSpikeAndDipAnomaly”**。
 
-1. To move to the tile details, click **Next**.
+1. 要显示“磁贴详细信息”窗格，请单击 **“下一步”**。
 
-1. In the **Tile details** pane, under **Title**, enter **Is anomaly?**.
+1. 在 **“磁贴详细信息”** 窗格中的 **“标题”** 下，输入 **“Is anomaly?”** 
 
-1. Leave the remaining fields as they are and click **Apply**.
+1. 要关闭“磁贴详细信息”窗格，请单击 **“应用”**。
 
-    If you see a notification about creating a phone view, you can ignore it and it will disappear shortly (or dismiss it yourself).
+    如果看到有关创建电话视图的通知，你可以忽略，它很快就会消失（或者你自行关闭）。
 
-1. Again, reduce the size of the tile by moving your mouse over the bottom-right corner of the tile and click-and-drag the resize icon. Make the tile as small as you can.
+1. 再次提示，减小磁贴的大小，越小越好。
 
-## Rearrange the Tiles
+#### 任务 5：重新排列磁贴
 
-1. Using drag-and-drop, arrange the tiles on the left of the dashboard in the following order:
+1. 使用拖放操作，按照以下顺序将磁贴垂直排列在仪表板左侧：
 
     * SpikeAndDipScore
-    * Is Anomaly?
-    * Vibration
+    * 是异常吗？
+    * 振动
 
-## Add Anomalies Over The Hour Line Chart Tile
+#### 任务 6：添加“Anomalies Over The Hour”折线图磁贴
 
-Now create a fourth tile, the `Anomalies Over the Hour` line chart.  This one is a bit more complex.
+现在创建第四个磁贴，即 `Anomalies Over the Hour` 折线图。  该过程有点复杂。
 
-1. At the top of the blank dashboard, click **+ Add tile**.
+1. 在空白仪表板屏幕顶部，单击 **“+ 添加磁贴”**。
 
-2. In the **Add tile** pane, under **REAL-TIME DATA**, click **Custom Streaming Data** and then click **Next** at the bottom of the pane.
+2. 在 **“添加磁贴”** 窗格中的 **“实时数据”** 下，单击 **“自定义流数据”**，然后单击 **“下一个”**。
 
-3. On the **Add a custom streaming data tile** pane, under **YOUR DATASETS**, click **vibrationDataset** and click **Next**.
+3. 在 **“添加自定义流数据磁贴”** 窗格中的 **“你的数据集”** 下，单击 **“vibrationDataset”**，然后单击 **“下一步”**。
 
-    The pane will refresh to allow you to choose a visualization type and fields.
+    窗格将刷新，使你能够选择可视化类型和字段。
 
-4. Under **Visualization Type**, select **Line chart**.
+4. 在 **“可视化效果类型”** 选项下，打开下拉列表，然后单击 **“折线图”**。
 
-    Notice that changing the visualization type changes the fields below.
+    请注意，更改可视化类型将更改以下字段。
 
-5. Under **Axis**, click **+ Add value** and select **time** from the dropdown.
+5. 在 **“轴”** 下，单击 **“+ 添加值”**，然后从下拉菜单中选择 **“时间”**。
 
-6. Under **Values**, click **+ Add value** and select **IsSpikeAndDipAnomaly** from the dropdown.
+6. 在 **“值”** 下，单击 **“+ 添加值”**，然后从下拉菜单中选择 **“IsSpikeAndDipAnomaly”**。
 
-    Notice that the chart appears immediately on the dashboard with a value that begins to update!
+    注意该图表会立即显示在仪表板上，并且其值开始更新！
 
-7. Under **Time window to display**, next to **Last**, select **60** from the dropdown and leave the units set to **Minutes**.
+7. 在 **“显示时间窗口”** 下， 在 **“持续”** 右边，打开下拉菜单，然后单击 **“60”** 
 
-8. To move to the tile details, click **Next**.
+    将单位设置为 **“分钟”**。
 
-9. In the **Tile details** pane, under **Title**, enter **Anomalies over the hour**.
+8. 要显示“磁贴详细信息”窗格，请单击 **“下一步”**。
 
-10. Leave the remaining fields as they are and click **Apply**.
+9. 在 **“磁贴详细信息”** 窗格中的 **“标题”** 下，输入 **“一小时内的异常”**。
 
-    If you see a notification about creating a phone view, you can ignore it and it will disappear shortly (or dismiss it yourself).
+10. 要关闭“磁贴详细信息”窗格，请单击 **“应用”**。
 
-11. This time, stretch the tile so its height matches the 3 tiles to the left and its width fits the remaining space of the dashboard.
+    如果看到有关创建电话视图的通知，你可以忽略，它很快就会消失（或者你自行关闭）。
 
-12. There's a latency with so many routes and connections, but are you now seeing the vibration data coming through?
+11. 这次，拉伸磁贴，使其高度与左侧的 3 个磁贴相同，且宽度填满仪表板的剩余空间。
 
-    > [!NOTE] If no data appears, check you are running the device app and  the analytics job is running.
+    大量路由和连接会导致延迟，但是你应该会在可视化效果中开始看到振动数据。
 
-13. Let the job run for a while, several minutes at least before the ML model will kick in. Compare the console output of the device app, with the Power BI dashboard. Are you able to correlate the forced and increasing vibrations to a run of anomaly detections?
+    > **注释**：  如果未出现任何数据，请检查你是否在运行设备应用以及分析作业是否在运行。
 
-If you're seeing an active Power BI dashboard, you've just  completed this lab. Great work. 
+    让作业运行片刻，在 ML 模型启动前至少运行几分钟时间。对比设备应用和 Power BI 仪表板两者的控制台输出。你是否能够将强迫振动和不断增加的振动与一系列异常检测相关联？
 
-> [!NOTE] Before you go, don't forget to close Visual Studio Code - this will exit the device app if it is still running.
+如果 Power BI 仪表板开始运转，则表明你已经完成了本实验室的全部内容。干得漂亮！
 
+> **注释**：  离开之前，请不要忘记关闭 Visual Studio Code ，否则它会关闭设备应用。

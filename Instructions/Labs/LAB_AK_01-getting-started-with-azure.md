@@ -1,214 +1,220 @@
----
+﻿---
 lab:
-    title: 'Lab 01: Getting Started with Azure'
-    module: 'Module 1: Introduction to IoT and Azure IoT Services'
+    title: '实验室 01：Azure 入门'
+    module: '模块 1：IoT 和 Azure IoT 服务简介'
 ---
 
-# Getting Started with Azure
+# Azure 入门
 
-## Lab Scenario
+## 实验室场景
 
-You are an Azure IoT Developer for a leading gourmet cheese company named Contoso. You need to prepare the work environment that you will use to develop your IoT solution, on the Azure cloud side as well as your local device environment. Your team has decided to use Visual Studio Code as the primary coding tool for device management.
+你是一家名为 Contoso 的一流美食奶酪公司的 Azure IoT 开发人员。
 
-## In This Lab
+Contoso 首席技术官已对以 IoT 为代表的商业机会进行了评估，并得出结论：Contoso 可以通过实施 IoT 解决方案收获显著的好处。根据这些评估结果，他们选择了 Microsoft Azure IoT。
 
-In this lab, you will become familiar with the Azure portal and you will setup a Resource Group. The lab includes the following exercises:
+首先，你需要熟悉 Azure 工具。
 
-* Explore the Azure Portal
-* Create an Azure Dashboard and Resource Group
+## 本实验室概览
 
-## Exercise 1: Explore the Azure Portal and Dashboard
+在本实验室中，你将会熟悉 Azure 门户并设置资源组。本实验室包括以下练习：
 
-Before you begin working with the Azure IoT services, it's good to be familiar with how Azure itself works.
+* 浏览 Azure 门户
+* 创建一个 Azure 仪表板和资源组
 
-Although we commonly refer to Azure as a 'cloud', it is actually a web portal that is designed to make Azure resources accessible from a single web site. All of Azure is accessible through the Azure portal.
+## 实验室说明
 
-### Task 1: Examine the Azure portal Home page
+### 练习 1：探索 Azure 门户和仪表板
 
-1. In your Web browser, to open your Azure portal, navigate to the [portal.azure.com](http://portal.azure.com).
+在开始使用 Azure IoT 服务之前，最好先熟悉 Azure 本身的工作方式。
 
-    When you log into Azure you will arrive at the Azure portal. The Azure portal provides you with a customizable UI that you can use to access your Azure resources.
+虽然我们通常将 Azure 称为“云”，但实际上它是一个 Web 门户，旨在实现从单个网站访问 Azure 资源。所有 Azure 资源都可通过 Azure 门户访问。
 
-1. In the upper left corner of the portal window, to open the portal menu, click the hamburger menu icon.
+#### 任务 1：检查 Azure 门户主页
 
-    At the top of the portal menu, you should see a section containing four menu options:
-    
-    * The **Create a resource** button opens a page displaying the services available through the Azure Marketplace, many of which provide free options. Notice that services are grouped by technology, including "Internet of Things", and that a search box is provided.
-    * The **Home** button opens a customized page that displays links to Azure services, your recently accessed services, and other tools.
-    * The **Dashboard** button opens a page displaying your default (or most recently used) dashboard. You will be creating a dashboard later in this lab.
+1. 在 Web 浏览器中，要打开 Azure 门户，请导航到 [portal.azure.com](http://portal.azure.com)。
 
-    * The **All services** button opens a page similar to the **Create a resource** button described above.
+    登录 Azure 后，你将进入 Azure 门户。Azure 门户提供了可自定义的 UI，可用于访问 Azure 资源。
 
-    The bottom section of the portal menu is a **FAVORITES** section that can be customized to show your favorite, or most commonly used, resources. Later in this lab, you will learn how to customize this default list of common services to make it a list of your own favorites.
+1. 在门户窗口的左上角，要打开 Azure 门户菜单，请单击汉堡菜单图标。
 
-1. On the portal menu, to display the **Home** page, click **Home**.
+    在门户菜单顶部，你应该会看到包含四个菜单选项的部分：
 
-1. On the home page, to display a map of data center regions, under **Azure services**, click **Service Health**.
+    * 单击 **“创建资源”** 按钮后会打开一个页面，显示 Azure 市场可用的服务，其中许多提供免费选项。请注意，服务是按技术分组的（包括“物联网”），并且提供了一个搜索框。
+    * 单击 **“主页”** 按钮后会打开一个自定义页面，显示指向 Azure 服务、最近访问的服务以及其他工具的链接。
+    * 单击 **“仪表板”** 按钮后会打开一个页面，显示你的默认（或最近使用的）仪表板。你稍后将在本实验室中创建仪表板。
 
-    When you subscribe to a resource in Azure you'll pick a region to deploy it to. Azure is supported by a series of regions placed all around the world.
+    * 单击 **“所有服务”** 按钮会打开一个页面，类似于上述 **“创建资源”** 按钮。
 
-    This map shows the current status of regions associated with your subscription(s). A green circle is used to indicate that services are running normally at that region.
+    门户菜单底部是 **“收藏夹”** 部分，这部分可以自定义来显示你的收藏，或最常用的资源。稍后在本实验室中，你将学习如何自定义该常见服务默认列表，使其成为你自己的收藏夹列表。
 
-    With any cloud vendor (Azure, AWS, Google Cloud, etc.), services will go down from time to time. If you see a blue 'i' next to a region on the Service Health map, it means the region is experiencing a problem with one or more services. Azure mitigates these issues by running multiple copies of your application in different regions (a practice referred to as *Geo-redundancy*). If a region experiences an issue with a particular service, those requests will roll over to another region to fulfill the request. This is one of the big advantages of hosting apps in the Azure cloud. Azure deals with the issues, so you don't have to.
+1. 在 Azure 门户菜单上，要显示 **“主页”** 页面，请单击 **“主页”**。
 
-1. In the upper-left corner of your Azure portal, to navigate back to your home page, click **Microsoft Azure**.
+1. 在主页上，要显示数据中心区域的地图，请在 **“Azure 服务”** 选项下单击 **“服务运行状况”**。
 
-    You can also use the portal menu to perform some simple navigation. You will have a chance to try out some options for portal navigation shortly.
+    在订阅 Azure 资源时，你将选取一个要部署到的区域。Azure 是由分布在世界各地的一系列区域支持的。
 
-### Task 2: Explore the Azure Service options
+    此地图显示与订阅关联区域的当前状态。绿色圆圈表明该区域的服务正常运行。
 
-1. Open the portal menu, and then click **All services**.
+    对于任何云供应商（Azure、AWS、Google Cloud 等）而言，服务都会不时关闭。如果在服务运行状况地图上的某个区域旁边看到一个蓝色的“i”，则表示该区域的一项或多项服务正面临问题。Azure 通过在不同区域中运行应用程序的多个副本来缓解这些问题（一种称为*地理冗余*的做法）。如果某个区域的特定服务出现问题，则这些请求将滚动到另一个区域以完成该请求。这是在 Azure 云中托管应用的一大优势。Azure 负责解决这些问题，省去了你的麻烦。
 
-    The _All services_ page provides you with a few different viewing options and access to all of the services that Azure offers in both PaaS and IaaS. The first time that you open the _All services_ page, you will see the _Overview_ page. This view is accessible from the left side menu.
+1. 在 Azure 门户的左上角，要回到主页，请单击 **“Microsoft Azure”**。
 
-    >**Definitions:** The term **PaaS** is an acronym for **Platform as a Service**, and the term **IaaS** is an acronym for **Infrastructure as a Service**
+    你也可以使用门户菜单执行一些简单导航。你将很快有机会尝试一些门户导航选项。
 
-1. On the _All services_ page, under _Categories_, click **All**.
+#### 任务 2：探索 Azure 服务选项
 
-    This view displays all of the services organized into groups corresponding to each Category. The Search box at the top can be very helpful.
+1. 打开 Azure 门户菜单，然后单击 **“所有服务”**。
 
-1. On the left side of the _All services_ page, under _Categories_, click **Internet of Things**.
+    _所有服务_页面为你提供了几种不同的查看选项，并可用来访问 PaaS 和 IaaS 中的所有 Azure 服务。第一次打开“所有服务”__页面时，将看到“概览”__页。可从左侧菜单访问此视图。
 
-    The list of services is now limited to the services directly related to an IoT solution.
+    >**定义：**术语 **PaaS** 是**平台即服务**的首字母缩写，而 **IaaS** 则是**基础结构即服务**的首字母缩写
 
-    Service/Resource pages on the Azure portal are sometimes referred to as _blades_. When you opened the Service Health page a couple of steps back, you opened a Service Health blade.
+1. 在“所有服务”__页面上的“类别”__下，单击 **“全部”**。
 
-    The Azure portal uses blades as a kind of navigation pattern, opening new blades to the right as you drill deeper and deeper into a service. This gives you a form of breadcrumb navigation as you navigate horizontally.
+    此视图显示的所有服务都组织成与每个类别相对应的组。顶部的“搜索”框可能会很有帮助。
 
-1. Hover your mouse pointer over **IoT Hub**.
+1. 在“所有服务”__页面左侧的“类别”__下，单击 **“物联网”**。
 
-    A dialog box is displayed. In the top-right corner, notice the "star" shape. When the star shape is filled-in, the service is selected as a favorite. Favorites will appear on the list of your favorite services on the left navigation menu of the portal window. This makes it easier to access the services that you use most often. You can customize your favorites list by selecting the services that you use most.
+    现在，服务列表仅限于与 IoT 解决方案直接相关的服务。
 
-1. In the top-right corner of the _IoT Hub_ dialog, to add IoT Hub to the list of your favorite services, click the star shaped icon.
+    Azure 门户上的服务/资源页面有时被称为_边栏选项卡_。在前几步打开“服务运行状况”页面时，你已打开一个“服务运行状况”边栏选项卡。
 
-    The star should now appear filled. If the star is shown as an outline, click the star icon again.
+    Azure 门户将边栏选项卡用作一种导航模式，随着你对服务的钻研越来越深入，右侧将打开新的边栏选项卡。在水平导航时，这提供了一种痕迹导航形式。
 
-    >**Tip:** When you add a new item to your list of favorites, it is placed at the bottom of the favorites list on the Azure portal menu. You can rearrange your favorites into the order that you want by using a drag-and-drop operation.
+1. 将鼠标指针悬停在 **“IoT 中心”**。
 
-    Use the same process to add the following services to your favorites: **Device Provisioning Services**, **Function App**, **Stream Analytics jobs**, and **Azure Cosmos DB**.
+    将显示一个对话框。注意右上角的“星”形。当星形填满后，该服务将被选作收藏。收藏夹将显示在门户窗口左侧导航菜单上的收藏服务列表中。这样可以更轻松地访问你最常使用的服务。你可以通过选择最常用的服务来自定义收藏列表。
 
-    > [!NOTE] You can remove a service from the list of your favorite services by clicking the star of a selected service.
+1. 在“IoT 中心”__对话框的右上角，要将 IoT 中心添加到你的收藏服务列表，请单击星形图标。
 
-1. On the left side of the _All services_ page, under _Categories_, click **General**.
+    此时星形图标应为实心。如果星形图标显示为轮廓，请再次单击。
 
-1. Ensure that the following services are selected as favorites:
+    >**提示：**当你将新项目添加到收藏列表时，它将放在 Azure 门户菜单上收藏列表的底部。你可以通过拖放操作将收藏列表重新排列为所需的顺序。
 
-    * **Subscriptions**
-    * **Resource groups**
+    也可以按照相同的过程将以下服务添加到收藏列表：**设备预配服务**、**函数应用**、**流分析作业**以及 **Azure Cosmos DB**。
 
-    The favorites that you've added are enough to get you started, but you can use the _Internet of Things_ category to add additional favorites to the portal menu if you want.
+    > **注释**：  你可以通过单击所选服务的星形图标将该服务从收藏服务列表中移除。
 
-### Task 3: Examine the Toolbar menu
+1. 在“所有服务”__页面左侧的“类别”__下，单击 **“常规”**。
 
-1. Notice the toolbar at the top of the portal that runs the full width of the window.
+1. 确保选择以下服务作为收藏：
 
-    In addition to the hamburger menu icon on the far left of this toolbar, there several items that you will find helpful.
+    * **订阅**
+    * **资源组**
 
-    First, notice that you have a _Search resources_ tool that can be used to quickly find a particular resource.
+    已添加的收藏足以满足入门阶段的需求，但你仍可根据需要在_物联网_类别下向门户菜单添加其他收藏。
 
-    To the right of the search tool are several buttons that provide access to common tools. You can hover the mouse pointer over a button to display the button name.
+#### 任务 3：检查“工具栏”菜单
 
-    * The _Cloud Shell_ button opens an interactive, authenticated shell right in the portal window that you can use to manage Azure resources. The Azure Cloud Shell supports Bash and PowerShell.
-    * The _Directory + Subscriptions_ button opens a pane that you can use to manage your Azure subscriptions and account directory (the Azure Active Directory authentication mechanism).
-    * The _Notifications_ button that opens a notifications pane. The notifications pane is useful when working with a long running process. You will be monitoring notifications when you create and configure resources throughout this course.
-    * There are also buttons for *Settings*, *Feedback*, and *Help*. The *Help* button contains links to help documents and a list of useful keyboard shortcuts.
+1. 注意门户顶部占据整个窗口宽度的工具栏。
 
-    On the far right is a button for your account information, providing you with access to things like your account password and billing information.
+    除了此工具栏最左侧的汉堡菜单图标之外，还有其他一些对你有帮助的项目。
 
-1. On the toolbar, click **Help**, and then click **Help + support**
+    首先请注意，你有可以快速查找特定资源的_搜索资源_工具。
 
-1. On the _Help + support_ blade, notice the four Tiles for _Getting started_, _Documentation_, _Learn about billing_, and _Support plans_.
+    搜索工具右侧是几个可用来访问常用工具的按钮。你可以将鼠标指针悬停在按钮上以显示按钮名称。
 
-    The _Help + support_ blade gives you access to lots of great resources. You may want to come back to this later for further exploration.
+    * “Cloud Shell”__按钮会在门户窗口中打开一个经过身份验证的交互式 shell，你可以使用该 shell 来管理 Azure 资源。Azure Cloud Shell 支持 Bash 和 PowerShell。
+    * “目录 + 订阅”__按钮将打开一个窗格，你可以使用该窗格来管理 Azure 订阅和帐户目录（Azure Active Directory 身份验证机制）。
+    * 可打开通知窗格的“通知”__按钮。在处理长期进程时，“通知”窗格很有用。在本课程中，你将在创建和配置资源时监视通知。
+    * 还有 *“设置”*、*“反馈”* 和 *“帮助”* 按钮。*“帮助”* 按钮包含帮助文档的链接和有用的键盘快捷键列表。
 
-1. On the _Help + support_ blade, click **Learn about billing**
+    最右边是你的帐户信息按钮，你可以使用该按钮来获取帐户密码和账单信息等内容。
 
-1. On the _Azure Documentation_ page, in the _Filter by title_ textbox, type **Prevent unexpected costs**
+1. 在工具栏上，单击 **“帮助”**，然后单击 **“帮助 + 支持”**
 
-1. Just below the filter textbox, click **Prevent unexpected costs**
+1. 在“帮助 + 支持”__边栏选项卡，请注意以下四个磁贴：“入门”__、“文档”__、“了解计费”__和“支持计划”__。
 
-    If *you* are using a paid Azure subscription and you are responsible for billing (you are the Account Administrator), you can use these instructions to set up billing alerts.
+    “帮助 + 支持”__边栏选项卡可让你访问大量资源。你可能希望稍后再来进一步探讨这个问题。
 
-## Exercise 2: Create an Azure Dashboard and Resource Group
+1. 在“帮助 + 支持”__边栏选项卡，单击 **“了解计费”**
 
-On the Azure portal, dashboards are used to present a customized view of your resources. Information is displayed through the use of tiles which can be arranged and sized to help you organize your resources in useful ways. You can create many different dashboards that provide different views and serve different purposes.
-Each tile that you place on your dashboard exposes one or more of your resources. In addition to tiles that expose the data of an individual resource, you can create a tile for something called a resource group.
+1. 在“Azure 文档”__页面的“按标题筛选”__文本框中，键入 **“防止意外成本”**
 
-A resource group is a logical group that contains related resources for a project or application. The resource group can include all the resources for the solution, or only those resources that you want to manage as a group. You decide how you want to allocate resources to resource groups based on what makes the most sense for your organization. Generally, add resources that share the same lifecycle to the same resource group so you can easily deploy, update, and delete them as a group.
+1. 在筛选器文本框下方，单击 **“防止意外成本”**
 
-In the following tasks, you will:
+    如果*你*正在使用付费 Azure 订阅，并且负责计费（你是帐户管理员），则可以使用这些说明来设置计费警报。
 
-* create a custom dashboard that you can use during this course
-* create a Resource Group and add a Resource Group tile to your dashboard
+### 练习 2：创建一个 Azure 仪表板和资源组
 
-### Task 1: Create a Dashboard
+在 Azure 门户上，仪表板用于显示资源的自定义视图。通过使用磁贴显示信息，磁贴可以进行排列和调整大小，以帮助你以有用的方式组织资源。你可以创建许多不同的仪表板，这些仪表板提供不同的视图并用于不同的目的。
 
-1. In a Web browser, navigate to your Azure portal.
+放置在仪表板上的每个磁贴都会公开一个或多个资源。除了显示单个资源的数据的磁贴以外，你还可以为名为资源组的对象创建磁贴。
 
-    You can use the following link to open the Azure portal: [Azure portal](https://portal.azure.com)
+资源组是一个逻辑组，其中包含项目或应用程序的相关资源。资源组可以包括解决方案的所有资源，或仅包括要作为组进行管理的那些资源。你可以根据最适合所在组织的选项，决定如何将资源分配至资源组。通常，将共享相同生命周期的资源添加到同一资源组，以便你可以轻松地将它们作为一组进行部署、更新和删除。
 
-1. On the portal menu, click **Dashboard**.
+在以下任务中，你将：
 
-1. On the _Dashboard_ page, click **+ New dashboard**
+* 创建一个可在本课程中使用的自定义仪表板
+* 创建资源组并将“资源组”磁贴添加到仪表板
 
-    We are going to create a custom dashboard to organize the resources that we use in this course.
+#### 任务 1：创建仪表板
 
-1. To name your new dashboard, replace **My Dashboard** with **AZ-220**
+1. 使用 Web 浏览器，导航到 Azure 门户。
 
-    In the upcoming steps you will be adding a tile to your dashboard manually. Another option would be to use drag-and-drop operations to add tiles from the Tile gallery to the space provided.
+    可以使用以下链接打开 Azure 门户：[Azure 门户](https://portal.azure.com)
 
-1. At the top of the dashboard editor, click **Done customizing**
+1. 在“Azure 门户中心”菜单上，单击 **“仪表板”**。
 
-    You should see an empty dashboard at this point.
+1. 在“仪表板”__页面上，单击 **“+ 新建仪表板”**。
 
-### TAsk 2: Create a Resource Group and add a Resource Group tile to your Dashboard
+    我们将创建一个自定义仪表板来组织在本课程中使用的资源。
 
-1. On the portal menu, click **Resource groups**
+1. 若要命名新的仪表板，请将 **“我的仪表板”** 替换为 **AZ-220**
 
-    This blade displays all of the resource groups that you have created using your Azure subscription(s). If you are just getting started with Azure, you probably don't have any resource groups yet.
+    在接下来的步骤中，将手动将磁贴添加到仪表板。另一种做法是使用拖放操作将磁贴库中的磁贴添加到提供的空间。
 
-1. On the _Resource groups_ blade, on the top menu, click **+ Add**
+1. 在仪表板编辑器顶部，单击 **“完成自定义”**。
 
-    This will open a new blade named _Create a resource group_.
+    此时会看到一个空的仪表板。
 
-1. Take a moment to review the contents of the _Create a resource group_ blade.
+#### 任务 2：创建资源组并将“资源组”磁贴添加到仪表板
 
-    Notice that the resource group is associated with a Subscription and a Region. Consider the following:
+1. 在 Azure 门户菜单上，单击 **“资源组”**。
 
-    * How might associating a subscription with your resource group be helpful?
-    * How might associating a region with your resource group affect what you include in your resource group?
+    此边栏选项卡中显示了你使用 Azure 订阅创建的所有资源组。如果你刚刚开始使用 Azure，则可能还没有任何资源组。
 
-1. In the **Subscription** dropdown, select the Azure subscription that you are using for this course.
+1. 在“资源组”__边栏选项卡的顶部菜单中，单击 **“+ 添加”**
 
-1. In the **Resource group** textbox, enter **AZ-220-RG**
+    此操作将打开一个名为“创建资源组”__新边栏选项卡。
 
-    The name of the resource group must be **unique** within your subscription. A green check mark will appear if the name that you enter has not already been used and confirms to resource group naming rules.
+1. 花一点时间查看“创建资源组”__边栏选项卡的内容。
 
-    >**Tip:** The Azure documentation describes all Azure [naming rules and restrictions](https://docs.microsoft.com/en-us/azure/architecture/best-practices/resource-naming).
+    请注意，资源组与订阅和区域相关联。考虑以下情况：
 
+    * 将订阅与你的资源组关联起来会有什么帮助？
+    * 将区域与你的资源组相关联起来会如何影响你包括在资源组中的内容？
 
-1. In the **Region** dropdown, select a region that is near you.  
+1. 在 **“订阅”** 下拉菜单中，选择用于本课程的 Azure 订阅。
 
-    You should check with your instructor as well, [as not all regions offer all services](https://azure.microsoft.com/en-us/global-infrastructure/services/).
+1. 在 **“资源组”** 文本框中，输入 **“AZ-220-RG”**。
 
-    You need to provide a location for the resource group because the resource group stores metadata about the resources and acts as the default location for where new resources in the resource group will be created. For compliance reasons, you may want to specify where that metadata is stored. In general, we recommend that you specify a location where most of your resources will reside. Using the same location can simplify the template used to manage your resources.
+    资源组的名称必须在你的订阅中为 **“唯一”** 。如果尚未使用你输入的名称并确认资源组命名规则，则会出现一个绿色的复选标记。
 
-1. At the bottom of the _Create a resource group_ blade, click **Review + create**.
+    >**提示：**Azure 文档描述了所有 Azure [命名规则和限制](https://docs.microsoft.com/zh-cn/azure/architecture/best-practices/resource-naming)。
 
-    You should see a message informing you that the settings for your resource group have been validated successfully.
+1. 在 **“区域”**下拉菜单中，选择你附近的区域。  
 
-1. To create your resource group, click **Create**.
+    你也应该向你的导师咨询， [因为并非所有地区都提供所有服务](https://azure.microsoft.com/zh-cn/global-infrastructure/services/)。
 
-1. On the top menu of the _Resource groups_ blade, to see your new resource group, click **Refresh**
+    你需要为资源组提供一个位置，因为资源组存储有关资源的元数据，并且充当将在资源组中创建新资源的默认位置。出于合规性原因，你可能需要指定元数据的存储位置。通常，我们建议指定一个存放你的大部分资源的位置。使用相同的位置可以简化用于管理资源的模板。
 
-    You will learn more about managing your resources as you continue through this course.
+1. 在“创建资源组”__边栏选项卡底部，单击 **“查看 + 创建”**。
 
-1. In the list of named resource groups, click the box to the left of the **AZ-220-RG** resource group that your just created.
+    你应该会看到一条消息，通知你资源组设置已成功验证。
 
-    > [!NOTE] You don't want to open the resource group in a new blade, you just want to select it (check mark on the left).
+1. 要创建资源组，请单击 **“创建”**。
 
-1. On the right side of the screen, click the ellipsis (...) corresponding to your resource group, and then click **Pin to dashboard**
+1. 在“资源组”__边栏选项卡的顶部菜单中，要查看新资源组，请单击 **“刷新”**
 
-1. Close your _Resource groups_ blade.
+    在继续学习本课程的过程中，你将学到更多有关管理资源的知识。
 
-    Your dashboard should now contain an empty Resources tile, but don't worry, we fill it up soon enough.
+1. 在已命名资源组列表中，单击你刚刚创建的 **AZ-220-RG** 资源组左侧的框。
+
+    > **注释**：  不建议你在新边栏选项卡中将资源组打开，只要将其选中即可（左侧的复选标记）。
+
+1. 在屏幕右侧，单击与资源组相对应的省略号 (...)，然后单击 **“固定到仪表板”**
+
+1. 关闭“资源组”__边栏选项卡。
+
+    现在，你的仪表板应该包含一个空的“资源”磁贴，但请放心，我们会尽快填充它。

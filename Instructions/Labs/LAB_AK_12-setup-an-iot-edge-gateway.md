@@ -1,436 +1,626 @@
----
+﻿---
 lab:
-    title: 'Lab 12: Setup an IoT Edge Gateway'
-    module: 'Module 6: Azure IoT Edge Deployment Process'
+    title: '实验室 12：设置 IoT Edge 网关'
+    module: '模块 6：Azure IoT Edge 部署过程'
 ---
 
-# Setup an IoT Edge Gateway
+# 设置 IoT Edge 网关
 
-## Lab Scenario
+## 实验室场景
 
-This lab is theoretical and will walk you through how an IoT Edge device can be used as a gateway.
+本实验室是理论性实验室，将带你逐步了解如何将 IoT Edge 设备用作网关。
 
-There are three patterns for using an IoT Edge device as a gateway: transparent, protocol translation, and identity translation:
+将 IoT Edge 设备用作网关有三种模式：透明、协议转换和标识转换：
 
-**Transparent** – Devices that theoretically could connect to IoT Hub can connect to a gateway device instead. The downstream devices have their own IoT Hub identities and are using any of the MQTT, AMQP, or HTTP protocols. The gateway simply passes communications between the devices and IoT Hub. The devices are unaware that they are communicating with the cloud via a gateway, and a user interacting with the devices in IoT Hub is unaware of the intermediate gateway device. Thus, the gateway is transparent. Refer to Create a transparent gateway for specifics on using an IoT Edge device as a transparent gateway.
+**透明** - 理论上可以连接到 IoT 中心的设备可以改为连接到网关设备。下游设备有其自己的 IoT 中心标识，并将使用任一 MQTT、AMQP 或 HTTP 协议。网关只是在设备与 IoT 中心之间传递通信。这些设备不知道它们正在通过网关与云进行通信，通过 IoT 中心与设备交互的用户觉察不到中间网关设备。因此，网关是透明的。请参阅“创建透明网关”，了解有关将 IoT Edge 设备用作透明网关的详细信息。
 
-**Protocol translation** – Also known as an opaque gateway pattern, devices that do not support MQTT, AMQP, or HTTP can use a gateway device to send data to IoT Hub on their behalf. The gateway understands the protocol used by the downstream devices, and is the only device that has an identity in IoT Hub. All information looks like it is coming from one device, the gateway. Downstream devices must embed additional identifying information in their messages if cloud applications want to analyze the data on a per-device basis. Additionally, IoT Hub primitives like twins and methods are only available for the gateway device, not downstream devices.
+**协议转换** - 也称为不透明网关模式，某些不支持 MQTT、AMQP 或 HTTP 的设备可以使用网关设备以这些设备的名义向 IoT 中心发送数据。网关能够理解下游设备使用的协议，是 IoT 中心唯一具有标识的设备。所有信息看起来像来自同一台设备，即网关。如果云应用程序想要以设备为单位分析数据，则下游设备就必须在其消息中嵌入额外的标识信息。此外，IoT 中心基元（例如孪生和方法）仅适用于网关设备，而不适用于下游设备。
 
-**Identity translation** - Devices that cannot connect to IoT Hub can connect to a gateway device, instead. The gateway provides IoT Hub identity and protocol translation on behalf of the downstream devices. The gateway is smart enough to understand the protocol used by the downstream devices, provide them identity, and translate IoT Hub primitives. Downstream devices appear in IoT Hub as first-class devices with twins and methods. A user can interact with the devices in IoT Hub and is unaware of the intermediate gateway device.
+**标识转换** - 无法连接到 IoT 中心的设备可以改为连接到网关设备。网关代表下游设备提供 IoT 中心标识和协议转换。网关非常智能，它能够理解下游设备使用的协议，为其提供标识，并转换 IoT 中心基元。下游设备作为一流设备出现在 IoT 中心，随附孪生和方法。用户可以与 IoT 中心的设备进行交互，但并觉察不到中间网关设备。
 
-## In This Lab
+将创建以下资源：
 
-In this lab, you will:
+![实验室 12 体系结构](media/LAB_AK_12-architecture.png)
 
-* Verify Lab Prerequisites
-* Deploy Azure IoT Edge Enabled Linux VM as an IoT Edge Device
-* Generate and Configure IoT Edge Device CA Certificates
-* Create IoT Edge Device Identity in IoT Hub using Azure Portal
-* Setup IoT Edge Gateway Hostname
-* Connect IoT Edge Gateway Device to IoT Hub
-* Open IoT Edge Gateway Device Ports for Communication
-* Create Downstream Device Identity in IoT Hub
-* Connect Downstream Device to IoT Edge Gateway
-* Verify Event Flow
+## 本实验室概览
 
+在本实验室中，你将完成以下活动：
 
-## Exercise 1: Verify Lab Prerequisites
+* 验证实验室先决条件
+* 将启用 Azure IoT Edge 的 Linux VM 部署为 IoT Edge 设备
+* 生成和配置 IoT Edge 设备 CA 证书
+* 使用 Azure 门户在 IoT 中心中创建 IoT Edge 设备标识
+* 设置 IoT Edge 网关主机名
+* 将 IoT Edge 网关设备连接到 IoT 中心
+* 打开 IoT Edge 网关设备端口进行通信
+* 在 IoT 中心中创建下游设备标识
+* 将下游设备连接到 IoT Edge 网关
+* 验证事件流
 
+## 实验室说明
 
+### 练习 1：验证实验室先决条件
 
-## Exercise 2: Deploy Azure IoT Edge enabled Linux VM
+本实验室假定以下 Azure 资源可用：
 
-In this exercise, you will deploy an Ubuntu Server VM with Azure IoT Edge runtime support from the Azure Marketplace.
+| 资源类型 | 资源名称 |
+| :-- | :-- |
+| 资源组 | AZ-220-RG |
+| IoT 中心 | AZ-220-HUB-_{YOUR-ID}_ |
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+如果这些资源不可用，则需要在继续练习 2 之前按下述说明运行 **lab12-setup.azcli** 脚本。脚本文件包含在本地克隆作为开发环境配置（实验室 3）的 GitHub 存储库中。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+> **注释**：  **lab12-setup.azcli** 脚本编写为在 **bash** shell 环境中运行，执行此操作的最简单方法是在 Azure Cloud Shell 中进行。
 
-1. In the Azure Portal, click **Create a resource** open the Azure Marketplace.
+1. 使用浏览器，打开 [Azure Cloud Shell](https://shell.azure.com/)，并使用本课程使用的 Azure 订阅登录。
 
-1. On the **New** blade, in the **Search the Marketplace** box, type in and search for **Azure IoT Edge on Ubuntu**.
+1. 如果系统提示设置 Cloud Shell 的存储，请接受默认设置。
 
-1. In the search results, select the **Azure IoT Edge on Ubuntu** item.
+1. 验证 Azure Shell 是否在使用 **Bash**。
 
-1. On the **Azure IoT Edge on Ubuntu** item, click **Create**.
+    Azure Cloud Shell 页面左上角的下拉菜单用于选择环境。验证所选的下拉值是否为 **Bash**。
 
-1. On the **Create a virtual machine** blade, select your Azure Subscription and use the **Create new** Resource group option to create a new Resource Group for the VM named `AZ-220-GWVM-RG`.
+1. 在 Azure Shell 工具栏上，单击 **上传/下载文件** （从右数第四个按钮）。
 
-1. In the **Virtual machine name** box, enter `AZ-220-VM-EDGEGW-{YOUR-ID}` for the name of the Virtual Machine.
+1. 在下拉菜单中，单击 **“上传”**。
 
-1. In the **Region** dropdown, select the Azure Region closest to you, or the region where your Azure IoT Hub is provisioned.
+1. 在“文件选择”对话框中，导航到配置开发环境时下载的 GitHub 实验室文件的文件夹位置。
 
-1. Notice the **Image** dropdown has the **Ubuntu Server 16.04 LTS + Azure IoT Edge runtime** image selected.
+    在本课程的实验室 3（“设置开发环境”）中，通过下载 ZIP 文件并在本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
 
-1. Under **Size**, click **Change size**. In the displayed list of sizes, select **DS1_v2** and click **Select**.
+    * Allfiles
+      * Labs
+          * 12-Setup an IoT Edge Gateway
+            * Setup
 
-    > [!NOTE] Not all VM sizes are available in all regions. If, in a later step, you are unable to select the VM size, try a different region. For example, if **West US** doesn't have the sizes available, try **West US 2**.
+    lab12-setup.azcli 脚本文件位于实验室 12 的设置文件夹中。
 
-1. Under **Administrator account**, select the **Password** option for **Authentication type**.
+1. 选择 **“lab12-setup.azcli”** 文件，然后单击 **“打开”**。
 
-1. Enter an Administrator **Username** and **Password** for the VM.
+    文件上传完成后，将显示一条通知。
 
-1. Notice the **Inbound port rules** is configured to enable inbound **SSH** access to the VM. This will be used to remote into the VM to configure/manage it.
+1. 要验证是否上传了正确的文件，请输入以下命令：
 
-1. Click **Review + create** to create the IoT Edge on Ubuntu virtual machine.
+    ```bash
+    ls
+    ```
 
-1. Once validation passes, click **Create** to begin deploying the virtual machine.
+    使用 `ls` 命令列出当前目录的内容。你会看到列出的 lab12-setup.azcli 文件。
 
-    > [!NOTE] Deployment will take approximately 5 minutes to complete. You can continue on to the next unit while it is deploying.
+1. 若要为此实验室创建一个包含安装脚本的目录，然后移至该目录，请输入以下 Bash 命令：
 
-## Exercise 3: Generate and Configure IoT Edge Device CA Certificates
+    ```bash
+    mkdir lab12
+    mv lab12-setup.azcli lab12
+    cd lab12
+    ```
 
-In this exercise, you will generate test certificates using Linux. You will do this on the `AZ-220-VM-EDGEGW-{YOUR-ID}` Virtual Machine using a helper script contained within the `Azure/IoTEdge` GitHub project.
+    这些命令将为此实验室创建一个目录，并将 **lab12-setup.azcli** 文件移入该目录，然后更改目录以使新目录成为当前工作目录。
 
-1. Navigate to the `AZ-220-VM-EDGEGW-{YOUR-ID}` IoT Edge virtual machine within the Azure Portal.
+1. 为了确保 **lab12-setup.azcli** 具有执行权限，请输入以下命令：
 
-1. On the **Overview** pane of the **Virtual machine** blade, click the **Connect** button at the top.
+    ```bash
+    chmod +x lab12-setup.azcli
+    ```
 
-1. Within the **Connect to virtual machine** pane, select the **SSH** option, then copy the **Login using VM local account** value.
+1. 在 Cloud Shell 工具栏上，要编辑 **lab12-setup.azcli** 文件，请单击 **“打开编辑器”** （右侧第二个按钮 - **{ }**）。
 
-    This is a sample SSH command that will be used to connect to the virtual machine that contains the IP Address for the VM and the Administrator username. The command is formatted similar to `ssh username@52.170.205.79`.
+1. 在 **“文件”** 列表，展开 lab4 文件夹，单击 **“lab12”**，然后单击 **“lab12-setup.azcli”**。
 
-1. At the top of the Azure Portal click on the **Cloud Shell** icon to open up the **Azure Cloud Shell** within the Azure Portal. When the pane opens, choose the option for the **Bash** terminal within the Cloud Shell.
+    编辑器当前将显示 **lab12-setup.azcli** 文件的内容。
 
-1. Within the Cloud Shell, paste in the `ssh` command that was copied, and press **Enter**.
+1. 在编辑器中，更新 `{YOUR-ID}` 和 `{YOUR-LOCATION}` 变量的值。
 
-1. When prompted with **Are you sure you want to continue connecting?**, type `yes` and press Enter. This prompt is a security confirmation since the certificate used to secure the connection to the VM is self-signed. The answer to this prompt will be remembered for subsequent connections, and is only prompted on the first connection.
+    以下面的示例为例，需要将 `{YOUR-ID}` 设置为在本课程开始时创建的唯一 ID，即 **“CAH191211”**，然后将 `{YOUR-LOCATION}` 设置为与资源组匹配的位置。
 
-1. When prompted to enter the password, enter the Administrator password that was entered when the VM was provisioned.
+    ```bash
+    #!/bin/bash
 
-1. Once connected, the terminal will change to show the name of the Linux VM, similar to the following. This tells you which VM you are connected to.
+    RGName="AZ-220-RG"
+    IoTHubName="AZ-220-HUB-{YOUR-ID}"
 
-    ```cmd/sh
+    Location="{YOUR-LOCATION}"
+    ```
+
+    > **注释**：  应将 `{YOUR-LOCATION}` 变量设置为要部署所有资源的区域的短名称。输入以下命令，可以看到可用位置及其短名称的列表（**Name** 列）：
+    >
+    > ```bash
+    > az account list-locations -o Table
+    >
+    > DisplayName           Latitude    Longitude    Name
+    > --------------------  ----------  -----------  ------------------
+    > East Asia             22.267      114.188      eastasia
+    > Southeast Asia        1.283       103.833      southeastasia
+    > Central US            41.5908     -93.6208     centralus
+    > East US               37.3719     -79.8164     eastus
+    > East US 2             36.6681     -78.3889     eastus2
+    > ```
+
+1. 要保存对文件所做的更改并关闭编辑器，请单击编辑器窗口右上角的 **“...”**，然后单击 **“关闭编辑器”**。
+
+    如果提示保存，请单击 **“保存”**，编辑器将会关闭。
+
+    > **注释**：  可以使用 **CTRL+S** 随时保存，使用 **CTRL+Q** 关闭编辑器。
+
+1. 要创建本实验室所需的资源，请输入以下命令：
+
+    ```bash
+    ./lab12-setup.azcli
+    ```
+
+    运行将花费几分钟时间。每个步骤完成时，你将会看到 JSON 输出。
+
+脚本完成后，就可以继续实验室的内容。
+
+### 练习 2：部署启用 Azure IoT Edge 的 Linux VM
+
+在本练习中，将从 Azure 市场部署具有 Azure IoT Edge 运行时支持的 Ubuntu Server VM。你将配置此模拟 IoT Edge 设备用作 Edge 网关。
+
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
+
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
+
+1. 在 Azure 门户菜单上，单击 **“创建资源”**。
+
+1. 在 **“新建”** 边栏选项卡的 **“搜索市场”** 框中，输入 **在上的 Azure IoT Edge**，然后单击 **“在 Ubuntu 上的 Azure IoT Edge”**。
+
+1. 在 **“在 Ubuntu 上的 Azure IoT Edge”** 边栏选项卡中，单击 **“创建”**。
+
+1. 在 **“创建虚拟机”** 边栏选项卡的 **“订阅”** 下拉菜单中，请确保已选择将用于本课程的订阅。
+
+1. 在 **“资源组”** 下拉菜单中，单击 **“新建”**。
+
+1. 在资源组的“名称”弹出窗口中的 **“名称”** 下，输入 **“AZ-220-GWVM-RG”**，然后单击 **“确定”**。
+
+1. 在 **“实例详细信息”** 的 **“虚拟机名称”** 文本框中，输入 **“AZ-220-VM-EDGEGW-{YOUR-ID}”**。
+
+1. 在 **“区域”** 下拉菜单中，选择预配 Azure IoT 中心的区域。
+
+1. 将 **“可用性选项”** 字段保留为 **“无需基础结构冗余”**。
+
+1. 请注意，**“映像”** 下拉菜单中有选定的 **“Ubuntu Server 16.04 LTS + Azure IoT Edge 运行时”** 映像。
+
+1. 将 **“Azure Spot 实例”** 字段保留为 **“无”**。
+
+1. 在 **“大小”** 下，单击 **“更改大小”**。
+
+1. 在 **“选择 VM 大小”** 边栏选项卡上，单击 **“DS1_v2”**，然后单击 **“选择”**。
+
+    可能需要使用 **“清除筛选器”** 链接以在列表中提供此大小。
+
+    > **注释**：并非所有 VM 大小都可在所有区域中使用。如果在后续步骤中无法选择 VM 大小，请尝试其他区域。例如，如果 **“美国西部”** 没有可用的尺寸，请尝试 **“美国西部 2”**。
+
+1. 在 **“管理员帐户”** 下的 **“身份验证类型”** 右侧，单击 **“密码”**。
+
+1. 对于 VM 管理员帐户，输入 **用户名**、**密码** 和 **确认密码** 字段的值。
+
+    > **重要事项：** 请勿遗失/忘记这些值 - 没有这些值就无法连接到 VM。
+
+1. 请注意，**“入站端口规则”** 配置为启用入站 **SSH** 访问 VM 的权限。
+
+    这将用于远程连接到 VM 进行配置/管理。
+
+1. 单击 **审阅 + 创建**。
+
+1. 等待将显示在边栏选项卡顶部的 **“验证通过”** 消息，然后单击 **“创建”**。
+
+    > **注释**：  部署最多可能需要 5 分钟才能完成。可以在部署时继续进行下一个练习。
+
+### 练习 3：生成和配置 IoT Edge 设备 CA 证书
+
+在本练习中，将使用 Linux 生成测试证书。你将在 `AZ-220-VM-EDGEGW-{YOUR-ID}` 虚拟机上使用在本课程的实验室 3 中为该实验室创建的“初学者”文件夹中包含的帮助程序脚本来执行此操作。
+
+1. 验证 IoT Edge 虚拟机是否已成功部署。
+
+    可以查看 Azure 门户中的“通知”窗格。
+
+1. 在 Azure 门户菜单上，单击 **“资源组”**。
+
+1. 在 **“资源组”** 边栏选项卡上，找到 AZ-220-GWVM-RG 资源组。
+
+1. 在边栏选项卡右侧的 **AZ-220-GWVM-RG** 中，单击 **“单击以打开上下文菜单”**（省略号图标 - **...**）
+
+1. 在上下文菜单上，单击 **“固定到仪表板”**，然后导航回仪表板。
+
+    如果 **编辑** 仪表板来重新排列磁贴更易于访问资源，你可以对其进行编辑。
+ 
+1. 在 **“AZ-220-GWVM-RG”** 资源组磁贴上，单击 **“AZ-220-GWVM-EDGE-{YOUR-ID}”**，打开 Edge 网关虚拟机。
+
+    > **注释**：由于资源名称很长且有些相似，因此请确保选择 VM，而不是磁盘、公共 IP 地址或网络安全组。  
+
+1. 在 **“AZ-220-GWVM-EDGE-{YOUR-ID}”** 边栏选项卡，单击 **“连接”**，然后单击 **“SSH”**。
+
+1. 在 **“连接”** 窗格的 **“运行以下示例命令以连接到 VM 4.”** 下，复制示例命令。
+
+    这是一个示例 SSH 命令，可用于连接到包含 VM 的 IP 地址和管理员用户名的虚拟机。该命令的格式应类似于 `ssh username@52.170.205.79`。
+
+    > **注释**：如果示例命令包含 `-i <private key path>`，使用文本编辑器删除命令的该部分，然后将更新的命令复制到剪贴板。
+
+1. 在 Azure 门户工具栏上，单击 **“Cloud Shell”**
+
+1. 在 Cloud Shell 命令提示符处，粘贴在文本编辑器中更新的 `ssh` 命令，然后按 **Enter**。
+
+1. 当提示 **“确定要继续连接吗？”**，输入 `是` ，然后按 **Enter**。
+
+    此提示是安全性确认，因为用于保护与 VM 的连接的证书是自签名证书。后续连接将记住该提示的答案，并且仅在第一次连接时提示。
+
+1. 当提示输入密码时，请输入在预配 Edge 网关 VM 时创建的管理员密码。
+
+1. 连接后，终端将更改为显示 Linux VM 的名称，类似于以下内容。这会告诉你连接的是哪个 VM。
+
+    ``` bash
     username@AZ-220-VM-EDGEGW-{YOUR-ID}:~$
     ```
 
-1. The `Azure/IoTEdge` GitHub project contains scripts to generate non-production certificates. These scripts will help you create the necessary scripts to set up a Transparent IoT Edge Gateway. Run the following command:
+    > **重要事项**：连接时，你可能会被告知 Edge VM 有未完成的 OS 更新。  出于实验室目的，我们忽略了这一点，但是在生产环境中，你始终需要确保 Edge 设备保持最新状态。
 
-    ```cmd/sh
+1. 若要下载和配置一些 Azure IoT Edge 帮助程序脚本，请输入以下命令：
+
+    ```bash
     git clone https://github.com/Azure/iotedge.git
     ```
 
-    > [!NOTE] The [Azure/iotedge](https://github.com/Azure/iotedge) open source project is the official open source project for Azure IoT Edge. This project contains source code for the Edge Agent, Edge Hub, and IoT Edge Security Daemon; in addition to the helper script used in this unit.
+    `Azure/IoTEdge` GitHub 项目包含要生成 **非生产** 证书的脚本。这些脚本将帮助你创建设置透明的 IoT Edge 网关所需的脚本。
 
-1. Run the following commands to create a working directory named `~/certificates` that will be used for generating the certificates, then move to that directory:
+    > **注释**：  [Azure/iotedge](https://github.com/Azure/iotedge) 开放源代码项目是 Azure IoT Edge 的官方开放源代码项目。该项目包含 Edge 代理、Edge 中心和 IoT Edge 安全守护程序的源代码；此外，还包括本单元中使用的帮助程序脚本。
 
-    ```cmd/sh
-    mkdir certificates
-    cd certificates
+1. 请输入以下命令，创建一个名为“lab12”的工作目录，然后移动到该目录中：
+
+    ```bash
+    mkdir lab12
+    cd lab12
     ```
 
-1. To generate the certificates, the helper scripts need to be copied to the working directory. To do this, run the following commands:
+    > **注释**：你将使用网关 VM 上的 “lab12” 目录生成证书。若要生成证书，需要将帮助程序脚本复制到工作目录中。
 
-    ```cmd/sh
+1.  请输入以下命令，将帮助程序脚本复制到 lab12 目录中：
+
+    ```bash
     cp ../iotedge/tools/CACertificates/*.cnf .
     cp ../iotedge/tools/CACertificates/certGen.sh .
     ```
 
-    These commands will copy just the necessary files for running the helper script for generating test CA certificates. The rest of the source files within the Azure/iotedge repository are not needed for this unit.
+    这些命令将仅复制用于运行帮助程序脚本以生成测试 CA 证书所需的文件。本实验室不需要 Azure/iotedge 存储库中的其余源文件。
 
-1. Within the working directory, run the following command to verify the helper script files have been copied correctly.
+1. 请输入以下命令，验证是否已正确复制帮助程序脚本文件：
 
-    ```cmd/sh
+    ```bash
     ls
     ```
 
-    This command should output there are 2 files within the directory. The `certGen.sh` is the helper bash script, and the `openssl_root_ca.cnf` file is the configuration file needed for generating the certificates with the helper script using OpenSSL.
+    此命令应输出一个显示目录中有 2 个文件的文件列表。`certGen.sh` 是帮助程序 Bash 脚本，`openssl_root_ca.cnf` 文件是通过使用 OpenSSL 的帮助程序脚本生成证书所需的配置文件。
 
-    ```text
-    username@AZ-220-VM-EDGEGW:~/certificates$ ls
-    certGen.sh  openssl_root_ca.cnf
-    ```
+    验证命令提示符是否包含 `~/lab12`，这表明你是否在正确的位置运行命令。这映射到 `/home/<username>/lab12` 目录，其中 `<username>` 是登录到 SSH 所使用的用户。将 Azure IoT Edge 配置为使用生成的证书时，稍后将需要使用此目录位置。
 
-    Make note that the directory where you're running the script is located at `~/certificates`. This maps to the `/home/<username>/certificates` directory, where `<username>` is the user your logged into SSH with. You will need to use this directory location later when configuring Azure IoT Edge to use the generated certificates.
+1. 请输入以下命令，生成根 CA 证书和一个中间证书：
 
-1. The `certGen.sh` helper script is run with the `create_root_and_intermediate` parameter to generate the root CA certificate and one intermediate certificate. Run the following command to do this:
-
-    ```cmd/sh
+    ```bash
     ./certGen.sh create_root_and_intermediate
     ```
 
-    The script created several certificate and key files. Make note of the following **root CA certificate** file that will be referred to later:
+    `certGen.sh` 帮助程序脚本使用 `create_root_and_intermediate` 参数生成根 CA 证书和一个中间证书。该脚本将创建几个证书和密钥文件。记下以下 **根 CA 证书** 文件，稍后将引用它：
 
     ```text
-    # Root CA certificate
-    ~/certificates/certs/azure-iot-test-only.root.ca.cert.pem
+    ＃根 CA 证书
+    ~/lab12/certs/azure-iot-test-only.root.ca.cert.pem
     ```
 
-1. Now that the root CA has been generated, the IoT Edge device CA certificate and private key need to be generated. Run the following command to generate the IoT Edge device CA certificate, and uses `MyEdgeDeviceCA` as the name for the CA certificate that is generated.
+    生成了根 CA 之后，需要生成 IoT Edge 设备 CA 证书和私钥。 
 
-    ```cmd/sh
+1. 请输入以下命令，生成 IoT Edge 设备 CA 证书：
+
+    ```bash
     ./certGen.sh create_edge_device_ca_certificate "MyEdgeDeviceCA"
     ```
 
-    The generated certificates are created with the name specified to this command. If a name other than `MyEdgeDeviceCA` is used, then the generated certificates will reflect that name.
+    使用此命令指定的名称创建生成的证书。如果使用的名称不是 `MyEdgeDeviceCA`，则生成的证书将反映该名称。
 
-    This script created several certificate and key files. Make note of the following files that will be referred to later:
+    该脚本创建了多个证书和密钥文件。记下稍后将引用的以下文件：
 
     ```text
-    # Device CA certificate
-    ~/certificates/certs/iot-edge-device-ca-MyEdgeDeviceCA-full-chain.cert.pem
-    # Device CA private key
-    ~/certificates/private/iot-edge-device-ca-MyEdgeDeviceCA.key.pem
+    ＃设备 CA 证书
+    ~/lab12/certs/iot-edge-device-ca-MyEdgeDeviceCA-full-chain.cert.pem
+    ＃设备 CA 私钥
+    ~/lab12/private/iot-edge-device-ca-MyEdgeDeviceCA.key.pem
     ```
 
-    > [!NOTE] Now that the IoT Edge Device CA certificate has been generated, do not re-run the previous command that generates the root CA certificate. Doing so will overwrite the existing certificate with a new one that will no longer match the `MyEdgeDeviceCA` IoT Edge Device CA certificate that was just generated.
+    > **注释**：生成了 IoT Edge 设备 CA 证书之后，请勿重新运行可生成根 CA 证书的上述命令。这样将用新证书覆盖现有证书，新证书与刚生成的 `MyEdgeDeviceCA` IoT Edge 设备 CA 证书不再匹配。
 
-1. To confirm that the Azure IoT Edge Runtime is installed on the VM, run the following command:
+1. 请输入以下命令，确认 VM 上安装了 Azure IoT Edge 运行时：
 
-    ```cmd/sh
+    ```bash
     iotedge version
     ```
 
-    This command will output the version of the Azure IoT Edge Runtime that is currently installed on the virtual machine.
+    此命令将输出当前在虚拟机上安装的 Azure IoT Edge 运行时的版本。
 
-    The version output will be similar to the following:
+    版本输出类似于以下内容：
 
-    ```sh
-    username@AZ-220-VM-EDGEGW:~/certificates$ iotedge version
+    ```bash
+    username@AZ-220-VM-EDGEGW:~/lab12$ iotedge version
     iotedge 1.0.8 (208b2204fd30e856d00b280112422130c104b9f0)
     ```
 
-1. To configure Azure IoT Edge, the `/etc/iotedge/config.yaml` configuration file needs to be modified to contain the full path to the certificate and key files on the IoT Edge Device. Before the file can be edited, you must be sure the `config.yaml` file is not read-only. Run the following command to set the file to be writable:
+1. 为确保能够配置 Azure IoT Edge，请输入以下命令：
 
-    ```cmd/sh
+    ```bash
     sudo chmod a+w /etc/iotedge/config.yaml
     ```
 
-1. Run the following command to open the `config.yaml` file within the vi/vim editor:
+    要配置 Azure IoT Edge，需要修改 `/etc/iotedge/config.yaml` 配置文件以包含指向 IoT Edge 设备上的证书和密钥文件的完整路径。必须确保 `config.yaml` 文件不是只读文件，然后才能编辑文件。上述命令将 `config.yaml` 文件设置为可写。
 
-    ```cmd/sh
+1. 请输入以下命令，在 vi/vim 编辑器中打开 `config.yaml` 文件：
+
+    ```bash
     sudo vi /etc/iotedge/config.yaml
     ```
 
-1. Locate the **Certificate settings** section within the file, remove the leading `#` character before the certificate properties to uncomment those lines, then edit the certificate settings to contain the correct certificate and key paths. After changes are made, save the file and exit the editor.
+    > **注释**：如果你想使用其他编辑器，例如 `code`、`nano` 或 `emacs`，也没有问题。
 
-    After the x.509 certificate settings changes made to the `config.yaml` file, this section of the file will look like the following:
+1. 在 vi/vim 编辑器中，在文件中向下滚动，直到找到 **“证书设置”** 部分。
+
+    > **注释**：  以下是在编辑 `config.yaml` 文件时使用 **vi** 的一些技巧：
+    > * 按 `i` 键将编辑器置于“插入”模式，然后就可以进行更改。
+    > * 按 `Esc` 键停止“插入”模式并返回到“普通”模式。
+    > * 若要保存并退出，请键入 `:x` 并按 `Enter`。
+    > * 键入 `:w` 并按 `Enter` 键，保存文件。
+    > * 输入 `:quit` 并按 `Enter` 键，退出 vi。
+    >
+    > 必须先停止插入模式，然后才能保存或退出。
+
+1. 若要更新 `certificates` 代码行，请删除前导 `# ` 字符并输入证书路径，如下所示：
 
     ```yaml
-        certificates:
-          device_ca_cert: "/home/<username>/certificates/certs/iot-edge-device-ca-MyEdgeDeviceCA-full-chain.cert.pem"
-          device_ca_pk: "/home/<username>/certificates/private/iot-edge-device-ca-MyEdgeDeviceCA.key.pem"
-          trusted_ca_certs: "/home/<username>/certificates/certs/azure-iot-test-only.root.ca.cert.pem"
+    certificates:
+        device_ca_cert: "/home/<username>/lab12/certs/iot-edge-device-ca-MyEdgeDeviceCA-full-chain.cert.pem"
+        device_ca_pk: "/home/<username>/lab12/private/iot-edge-device-ca-MyEdgeDeviceCA.key.pem"
+        trusted_ca_certs: "/home/<username>/lab12/certs/azure-iot-test-only.root.ca.cert.pem"
     ```
 
-    Be sure to replace the `<username>` placeholder within the file locations with the **Username** of the user your connected to SSH with.
+    > **注释**：请务必替换上述文件路径规范中的 `<username>` 占位符。需要指定连接到 SSH 的用户的 **用户名**（在创建 VM 时指定的管理员用户）。 
 
-    The x.509 certificates configured in this section are used for the following purposes:
+    > **重要事项**：YAML 将空格视为重要字符。在上面输入的行中，意味着 `certificates:` 前面不应有任何前导空格，并且在 `device_ca_cert:`、`device_ca_pk:` 和 `trusted_ca_certs:` 之前应有两个前导空格。
 
-    | Setting | Purpose |
+    本部分中配置的 X.509 证书用于以下目的：
+
+    | 设置 | 目的 |
     | :--- | :--- |
-    | `device_ca_cert` | This is the Device CA Certificate for the IoT Edge Device. |
-    | `device_ca_pk` | This is the Device CA Private Key for the IoT Edge Device. |
-    | `trusted_ca_certs` | This is the Root CA Certificate. This certificate must contain all the trusted CA certificates required for Edge module communications.|
+    | `device_ca_cert` | 这是 IoT Edge 设备的设备 CA 证书。 |
+    | `device_ca_pk` | 这是 IoT Edge 设备的设备 CA 私钥。 |
+    | `trusted_ca_certs` | 这是根 CA 证书。该证书必须包含 Edge 模块通信所需的所有受信任 CA 证书。|
 
-    > [!NOTE] Here are some tips for using **vi** when editing the `config.yaml` file:
-    > - Press the `i` key to put the editor into Insert mode, then you will be able to make changes.
-    > - Press `Esc` to go stop Insert mode and return to Normal mode.
-    > - To Save and Quit, type `:x`, and press `Enter`.
-    > - Save the file, type `:w`, and press `Enter`.
-    > - To quit vi, type `:quit` and press `Enter`.
+1. 请输入 **x**，然后按 **“Enter”**，即可保存更改并退出编辑器。
 
-1. The `MyEdgeDeviceCA` certificate needs to be downloaded from the `AZ-220-VM-EDGEGW` virtual machine so it can be used to configure the IoT Edge device enrollment within Azure IoT Hub Device Provisioning Service. Type `exit` in the **Azure Cloud Shell** to end the SSH session.
+    请记住，在保存或退出 vi/vim 编辑器之前，需要停止“插入”模式。
+
+1. 在 Cloud Shell 命令提示符处，输入以下命令即可结束 SSH 会话：
 
     ```sh
     exit
     ```
 
-1. Within the **Cloud Shell** run the following commands to download the `~/certificates` directory and its contents from the **AZ-220-VM-EDGEGW** virtual machine to the **Cloud Shell** storage:
+    接下来，你需要从 `AZ-220-VM-EDGEGW` 虚拟机中“下载” `MyEdgeDeviceCA` 证书，以便可以将其用于在 Azure IoT 中心设备预配服务中配置 IoT Edge 设备注册。
 
-    ```cmd/sh
-    mkdir certificates
-    scp -r -p <username>@<ipaddress>:~/certificates .
+1. 在 Cloud Shell 命令提示符处，输入以下命令，从 **AZ-220-VM-EDGEGW** 虚拟机下载 `~/lab12` 目录到 **Cloud Shell** 存储：
+
+    ```bash
+    mkdir lab12
+    scp -r -p <username>@<ipaddress>:~/lab12 .
     ```
 
-    Replace the `<username>` placeholder with the username of the admin user for the VM, and replace the `<ipaddress>` placeholder with the IP Address fo the VM.
+    > **注释**：将 `<username>` 占位符替换为 VM 管理员用户名的用户名，然后将 `<ipaddress>` 占位符替换为 VM 的 IP 地址。如有必要，请参阅你用来打开 SSH 会话的命令。
 
-    When executing the command, enter the Admin password for the VM when prompted.
+    输入 `scp` 命令后，在出现提示时输入 VM 的管理员密码。
 
-1. Once the command has executed, it will have downloaded a copy of the `~/certificates` directory with the certificate and key files over SSH to the Cloud Shell storage. You can verify the file has been downloaded by running the `ls` command within the `~/certificates` directory to view its contents.
+    执行该命令后，它会通过 SSH 将带有证书和密钥文件的 `~/lab12` 目录副本下载到 Cloud Shell 存储中。 
+    
+1. 若要验证是否已下载文件，请输入以下命令：
 
-    ```cmd/sh
-    chris@Azure:~$ cd certificates
-    chris@Azure:~/certificates$ ls
+    ```bash
+    cd lab12
+    ls
+    ```
+
+    你会看到列出的以下文件：
+
+    ```bash
     certGen.sh  csr        index.txt.attr      index.txt.old  openssl_root_ca.cnf  serial
     certs       index.txt  index.txt.attr.old  newcerts       private              serial.old
     ```
 
-    Once the files are copied to the **Azure Cloud Shell** storage, from the **AZ-220-VM-EDGEGW** virtual machine, you will be able to easily download any of the IoT Edge Device certificate and key files to your local machine as necessary. Files can be downloaded from the Azure Cloud Shell using the `download <filename>` command.
+    将文件从 `AZ-220-VM-EDGEGW` 虚拟机复制到 Cloud Shell 存储后，你将可以根据需要将任一 IoT Edge 设备证书和密钥文件轻松下载到本地计算机。可以使用 `download <filename>` 命令从 Cloud Shell 中下载文件。  实验室稍后会介绍此内容。
 
-## Exercise 4: Create IoT Edge Device Identity in IoT Hub using Azure Portal
+### 练习 4：使用 Azure 门户在 IoT 中心中创建 IoT Edge 设备标识
 
-In this exercise, you will create a new IoT Edge Device identity in Azure IoT Hub for the IoT Edge Transparent Gateway.
+在本练习中，你将使用 Azure IoT 中心为 IoT Edge 透明网关创建新的 IoT Edge 设备标识。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. On your Resource group tile, click **AZ-220-HUB-{YOUR-ID}** to navigate to the Azure IoT Hub.
+1. 在 **AZ-220-RG** 磁贴上，单击 **AZ-220-HUB-{YOUR-ID}**，打开 IoT 中心。
 
-1. On the IoT Hub summary blade, click **IoT Edge** under the Automatic Device Management section. This section of the IoT Hub blade allows you to manage the IoT Edge devices connected to the IoT Hub.
+1. 在 **AZ-220-HUB-{YOUR-ID}** 边栏选项卡上，在左侧导航菜单中的 **“自动设备管理”** 下，单击 **“IoT Edge”**。
 
-1. Click the **Add an IoT Edge device** button to begin adding a new IoT Edge Device to the IoT Hub.
+    可通过 IoT Edge 窗格管理连接到 IoT 中心的 IoT Edge 设备。
 
-1. On the **Create a device** blade, enter `AZ-220-VM-EDGEGW-{YOUR-ID}` into the **Device ID** field. This is the device identity used for authentication and access control.
+1. 在窗格顶部，单击 **“添加 IoT Edge 设备”**。
 
-1. Select **Symmetric key** for the **Authentication type**, and leave the **Auto-generate keys** box checked. This will have IoT Hub automatically generate the Symmetric keys for authenticating the device.
+1. 在 **“创建设备”** 边栏选项卡的 **“设备 ID”** 字段中，输入 **AZ-220-VM-EDGEGW-{YOUR-ID}**。
 
-1. Click **Save**.
+    请务必将 {YOUR-ID} 替换为在该课程开始时创建的值。这是将用于身份验证和访问控制的设备标识。
 
-1. Once the IoT Edge Device is added, click on the **Device ID** in the list of IoT Edge devices.
+1. 在 **“身份验证类型”** 处， 确保已选中 **“对称密钥”**，并保留选中 **“自动生成密钥”** 框。
 
-1. On the IoT Edge Device summary blade, copy the **Primary Connection String** and save it for later.
+    这将使 IoT 中心自动生成用于对设备进行身份验证的对称密钥。
 
-1. Notice the list of **Modules** configured for the IoT Edge Device contains the **\$edgeAgent** and **\$edgeHub** modules.
+1. 将其他设置保留为默认值，然后单击 **“保存”**。
 
-    The IoT Edge Agent (`$edgeAgent`) and IoT Edge Hub (`$edgeHub`) modules are a part of the IoT Edge Runtime. The Edge Hub is responsible for communication, and the Edge Agent deploys and monitors the modules on the device.
+    稍后，新的 IoT Edge 设备将添加到 IoT Edge 设备列表中。
 
-1. Click the **Set Modules** button at the top of the IoT Edge Device summary blade. This is used to add additional modules to the IoT Edge Device. At this time, you'll use this to ensure the message routing is configured correctly for the IoT Edge Gateway device.
+1. 在 **“设备 ID”** 处，单击 **AZ-220-VM-EDGEGW-{YOUR-ID}**。
 
-1. Leave all fields as they are in the **Modules** step, and click **Next: Routes >**.
+1. 在 **“AAZ-220-VM-EDGEGW-{YOUR-ID}”** 边栏选项卡处，复制 **“主连接字符串”**。
 
-1. Within the **Specify Routes**, the editor will display the configured default route for the IoT Edge Device. At this time, it should be configured with a route that sends all messages from all modules to Azure IoT Hub. If the route configuration doesn't match this, then update it to match the following route:
+    值的右侧提供一个“复制”按钮。
 
-    - Name: **route**
-    - Value: `FROM /* INTO $upstream`
+1. 将 **“主连接字符串”** 的值复制到文件，并记下与之关联的设备。
 
-    The `FROM /*` part of the message route will match all device-to-cloud messages or twin change notifications from any module or leaf device. Then, the `INTO $upstream` tells the route to send those messages to the Azure IoT Hub.
+1. 在 **“AZ-220-VM-EDGEGW-{YOUR-ID}”** 边栏选项卡处，请注意 **“模块”** 列表仅限于 **“\$edgeAgent”** 和 **“\$edgeHub”**。
 
-    > [!NOTE] To learn more about configuring message routing within Azure IoT Edge, reference the [Learn how to deploy modules and establish routes in IoT Edge](https://docs.microsoft.com/azure/iot-edge/module-composition#declare-routes#declare-routes) documentation article.
+    IoT Edge 代理 (`$edgeAgent`) 和 IoT Edge 中心 (`$edgeHub`) 模块是 IoT Edge 运行时的一部分。Edge 中心负责通信，Edge 代理则部署和监视设备上的模块。
 
-1. Click the **Next: Review + create >** button.
+1. 在边栏选项卡顶部，单击 **“设置模块”**。
 
-1. On the **Review + create** step, click the **Create** button.
+    **“在设备上设置模块”** 边栏选项卡可用于向 IoT Edge 设备添加其他模块。目前，将使用此边栏选项卡来确保为 IoT Edge 网关设备正确配置了消息路由。
 
-## Exercise 5: Setup IoT Edge Gateway Hostname
+1. 在 **“在设备上设置模块”** 边栏选项卡顶部，单击 **“路由”**。
 
-In this exercise, you will configure the DNS name for Public IP Address of the **AZ-220-VM-EDGEGW-{YOUR-ID}**, and configure that DNS name as the `hostname` of the IoT Edge Gateway device.
+    在 **“路由”** 处，编辑器将显示为 IoT Edge 设备配置的默认路由。此时，应配置将所有消息从所有模块发送到 Azure IoT 中心的路由。如果路由配置与此不匹配，请更新以匹配以下路由：
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+    * **NAME**: `route`
+    * **VALUE**: `FROM /* INTO $upstream`
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+    消息路由的 `FROM /*` 部分将匹配所有设备到云的消息，或者来自任何模块或叶设备的孪生更改通知。然后，`INTO $upstream` 告诉路由将这些消息发送到 Azure IoT 中心。
 
-1. Navigate to the `AZ-220-VM-EDGEGW-{YOUR-ID}` IoT Edge virtual machine within the Azure Portal.
+    > **注释**：  若要详细了解如何在 Azure IoT Edge 中配置消息路由，请参阅[了解如何在 IoT Edge 中部署模块和建立路由](https://docs.microsoft.com/azure/iot-edge/module-composition#declare-routes#declare-routes)一文。
 
-1. On the **Overview** pane of the **Virtual machine** blade, click the **Configure** link next to **DNS name**.
+1. 在边栏选项卡顶部，单击 **“查看 + 创建”**。
 
-1. On the **Public IP Address** Configuration blade for the AZ-220-VM-EDGEGW-{YOUR-ID} virtual machine, enter `az-220-vm-edgegw-{your-id}` into the **DNS name label** field (the label must be globally unique, and only lowercase letters, numbers and hyphens).
+    **“在设备上设置模块”** 边栏选项卡的标签页上显示 Edge 设备的部署清单。你会在边栏选项卡顶部看到一条消息，显示“验证通过”
 
-1. Click **Save**.
+1. 请花费片刻时间查看部署清单。
 
-1. Note the full DNS name for the Public IP Address of the **AZ-220-VM-EDGEGW-{YOUR-ID}** virtual machine, and save it for reference later.
+1. 在边栏选项卡底部，单击 **“创建”**。
 
-    The full DNS name is comprised of the `AZ-220-VM-EDGEGW-{YOUR-ID}` value suffixed by the text below the **DNS name label** field.
+### 练习 5：设置 IoT Edge 网关主机名
 
-    For example, the full DNS name will be:
+在本练习中，你将为 **AZ-220-VM-EDGEGW-_{YOUR-ID}__** 模拟 Edge 设备的公共 IP 地址配置 DNS 名称，并将该 DNS 名称配置为 IoT Edge 网关设备的 `hostname`。
+
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
+
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
+
+1. 在“仪表板”页面上，单击 **“AZ-220-VM-EDGEGW-_{YOUR-ID}_”**，打开 IoT Edge 虚拟机。
+
+1. 在 **“AZ-220-VM-EDGEGW-_{YOUR-ID}_”** 边栏选项卡上部，找到 **“DNS 名称”** 字段。
+
+    如果“概述”边栏选项卡顶部的“软件包”部分已折叠，要展开，请单击 **“软件包”**。
+
+1. 在 **“DNS 名称”** 字段右侧，单击 **“配置”**。
+
+1. 在 **“AZ-220-VM-EDGEGW-_{YOUR-ID}_-ip - Configuration”** 边栏选项卡上的 **“DNS 名称标签”** 字段中，输入 **“az-220-vm-edgegw-{your-id}”**
+
+    此标签必须全局唯一，并且只能是小写字母、数字和连字符。
+
+1. 在边栏选项卡顶部，单击 **“保存”**。
+
+1. 留意位于 **“DNS 名称标签”** 字段下方和右侧的文本。
+
+    输出应类似于以下内容：`.westus2.cloudapp.azure.com`，但是你的网站可能会列出其他地区。
+
+    完整的 DNS 名称由 `AZ-220-VM-EDGEGW-{YOUR-ID}` 值组成，这个值的后缀为 **“DNS 名称标签”** 字段下方的文本。
+
+    例如，完整的 DNS 名称可以是：
 
     ```text
-    az-220-vm-edgegw-cah123019.eastus.cloudapp.azure.com
+    az-220-vm-edgegw-cah191230.westus2.cloudapp.azure.com
     ```
 
-    All Public IP Address DNS names will be at the **.cloudapp.azure.com** domain name. This example is for the VM being hosted in the **eastus** Azure region. This part fo the DNS name will vary depending on what Azure region the VM is hosted within.
+    标准 Azure 商业云中的所有公共 IP 地址 DNS 名称都将位于 **cloudapp.azure.com** 域名中。此示例适用于托管在 **westus2** Azure 区域中的 VM。此部分 DNS 名称将取决于 VM 托管在哪个 Azure 区域。
 
-    Setting the DNS name for the Public IP Address of the **AZ-220-VM-EDGEGW** will give it a FQDN (Fully Qualified Domain Name) for the downstream device(s) to use as the **GatewayHostName** to connect to it. Since the VM, in this case, is accessible across the Internet an Internet DNS name is needed. If the Azure IoT Edge Gateway were hosted in a Private or Hybrid network, then the machine name would meet the requirements of a **GatewayHostName** for on-premises downstream devices to connect.
+    为 **AZ-220-VM-EDGEGW** 虚拟机的公共 IP 地址设置 DNS 名称将为下游设备提供一个 FQDN（完全限定的域名），作为与之连接的 `GatewayHostName`。在这种情况下，因为可以通过 Internet 访问 VM，因此需要 Internet DNS 名称。如果 Azure IoT Edge 网关托管在专用或混合网络中，则计算机名称将满足 `GatewayHostName` 供本地下游设备进行连接的要求。
 
-1. Navigate to the **AZ-220-VM-EDGEGW** IoT Edge virtual machine within the Azure Portal.
+1. 记录 **AZ-220-VM-EDGEGW-{YOUR-ID}** 虚拟机的完整 DNS 名称，并保存供以后引用。
 
-1. On the **Overview** pane of the **Virtual machine** blade, click the **Connect** button at the top.
+1. 导航回 **“AZ-220-VM-EDGEGW-{YOUR-ID}”** 边栏选项卡，然后单击 **“刷新”**。 
 
-1. Within the **Connect to virtual machine** pane, select the **SSH** option, then copy the **Login using VM local account** value.
+    > **注释**：如果仍处于“IP 配置”边栏选项卡中，则可以使用页面顶部的痕迹导航跟踪快速返回 VM。  在这种情况下， 在 **“概述”** 窗格中，使用“刷新”按钮更新显示的 DNS 名称。
 
-    This is a sample SSH command that will be used to connect to the virtual machine that contains the IP Address for the VM and the Administrator username. Now that the DNS name label has been configured, the command is formatted similar to `ssh demouser@AZ-220-VM-EDGEGW.eastus.cloudapp.azure.com`.
+1. 在边栏选项卡顶部，单击 **“连接”**，然后单击 **“SSH”**。
 
-    > [!NOTE] If a "_Host key verification failed_" messages displays, then use the VM's **IP Address** with the `ssh` command to connect tot he virtual machine.
+1. 和以前一样，找到 **“运行以下示例命令以连接到 VM。 4.”** 的值。
 
-1. At the top of the Azure Portal click on the **Cloud Shell** icon to open up the **Azure Cloud Shell** within the Azure Portal. When the pane opens, choose the option for the **Bash** terminal within the Cloud Shell.
+1. 请注意，示例命令当前包含新的 DNS 名称，而不是之前包含的 IP 地址。
 
-1. Within the Cloud Shell, paste in the `ssh` command that was copied, and press **Enter**.
+1. 在 **“运行以下示例命令以连接到 VM。4.”** 选项下，要复制命令，请单击 **“复制到剪贴板”**。
 
-1. When prompted to enter the password, enter the Administrator password that was entered when the VM was provisioned.
+    此示例 SSH 命令可用于连接到包含 VM 的 IP 地址和管理员用户名的虚拟机。在配置了 DNS 名称标签之后，该命令应类似于以下内容：`ssh demouser@AZ-220-VM-EDGEGW.eastus.cloudapp.azure.com`
 
-1. Run the following command to open the `config.yaml` file within the vi/vim editor:
+    > **注释**：如果示例命令包含 `-i <private key path>`，使用文本编辑器删除命令的该部分，然后将更新的命令复制到剪贴板。
+ 
+1. 在 Azure 门户工具栏上，单击 **“Cloud Shell”**。
 
-    ```cmd/sh
+    确保将 Cloud Shell 环境设置为使用 **Bash**。
+
+1. 在 Cloud Shell 命令提示符处，从上方输入`ssh`命令，然后按 **“输入”**。
+
+    如果看到警告询问是否确定要继续，请输入 **“是”**
+
+1. 当系统提示输入密码时，请输入你在预配 VM 时指定的管理员密码。
+
+1. 请输入以下命令，在 vi/vim 编辑器中打开 `config.yaml` 文件：
+
+    ```bash
     sudo vi /etc/iotedge/config.yaml
     ```
 
-1. Locate the **Edge device hostname** section within the file. Update the **hostname** value to be set to the **DNS name** set previously for the Public IP Address of the **AZ-220-VM-EDGEGW-{YOUR-ID}** virtual machine.
+    > **注释**：同样，可以根据需要使用其他编辑器。
 
-    The resulting value will look similar to the following:
+1. 在文件中向下滚动以找到 **“Edge 设备主机名”** 部分。 
+
+1. 将 **“主机名”** 的值设置为之前保存的 **完整 DNS 名称**。
+
+    这是 **AZ-220-VM-EDGEGW-_{YOUR-ID}_** 虚拟机的 **完整 DNS 名称**。
+
+    > **注释**：如果未保存名称，则可以在虚拟机的 **“概述”** 窗格找到该名称。  甚至可以在此复制它，并将其粘贴到 Cloud Shell 窗口中。
+
+    生成的值类似于以下内容：
 
     ```yaml
-    hostname: "az-220-vm-edgegw-{your-id}.eastus.cloudapp.azure.com"
+    hostname: "az-220-vm-edgegw-{YOUR-ID}.eastus.cloudapp.azure.com"
     ```
 
-    The `hostname` setting configures the Edge Hub server hostname. Regardless of the case used for this setting, a lowercase value is used to configure the Edge Hub server. This is also the hostname that downstream IoT devices will need to use when connecting to the IoT Edge Gateway for the encrypted communication to work properly.
+    `hostname` 设置用于配置 Edge 中心服务器主机名。不管本设置对大小写作何要求，配置 Edge 中心服务器一律使用小写值。这也是下游 IoT 设备在连接到 IoT Edge 网关时需要使用的主机名，以使加密通信能够正常工作。
 
-    > [!NOTE] Here are some tips for using **vi** when editing the `config.yaml` file:
-    > - Press `Esc` and enter `/` followed by a search string, then press enter to search
-    >   - Pressing `n` will cycle through matches.
-    > - Press the `i` key to put the editor into Insert mode, then you will be able to make changes.
-    > - Press `Esc` to go stop Insert mode and return to Normal mode.
-    > - To Save and Quit, type `:x`, and press `Enter`.
-    > - Save the file, type `:w`, and press `Enter`.
-    > - To quit vi, type `:quit` and press `Enter`.
+    > **注释**：  以下是在编辑 `config.yaml` 文件时使用 **vi** 的一些技巧：
+    > * 按 `Esc` 并输入 `/`，后跟一个搜索字符串，然后按 Enter 进行搜索
+    > * 按 `n` 将循环显示匹配项。
+    > * 按 `i` 键将编辑器置于“插入”模式，然后就可以进行更改。
+    > * 按 `Esc` 键停止“插入”模式并返回到“普通”模式。
+    > * 若要保存并退出，请键入 `:x` 并按 `Enter`。
+    > * 键入 `:w` 并按 `Enter` 键，保存文件。
+    > * 输入 `:quit` 并按 `Enter` 键，退出 vi。
 
-1. Save the file and exit vi/vim.
+1. 保存文件并退出 vi/vim。
 
-## Exercise 6: Connect IoT Edge Gateway Device to IoT Hub
+### 练习 6：将 IoT Edge 网关设备连接到 IoT 中心
 
-In this exercise, you will connect the IoT Edge Device to Azure IoT Hub.
+在本练习中，你将把 IoT Edge 设备连接到 Azure IoT 中心。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+1. 在 Azure 门户中，如果 Cloud Shell SSH 会话不能再打开，请重新连接。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+1. 要使用连接字符串为 Azure IoT 中心配置 Edge 设备，请运行以下命令：
 
-1. Navigate to the `AZ-220-VM-EDGEGW-{YOUR-ID}` IoT Edge virtual machine within the Azure Portal.
-
-1. On the **Overview** pane of the **Virtual machine** blade, click the **Connect** button at the top.
-
-1. Within the **Connect to virtual machine** pane, select the **SSH** option, then copy the **Login using VM local account** value.
-
-    This is a sample SSH command that will be used to connect to the virtual machine that contains the IP Address for the VM and the Administrator username. The command is formatted similar to `ssh demouser@52.170.205.79`.
-
-1. At the top of the Azure Portal click on the **Cloud Shell** icon to open up the **Azure Cloud Shell** within the Azure Portal. When the pane opens, choose the option for the **Bash** terminal within the Cloud Shell.
-
-1. Within the Cloud Shell, paste in the `ssh` command that was copied, and press **Enter**.
-
-1. When prompted with **Are you sure you want to continue connecting?**, type `yes` and press Enter. This prompt is a security confirmation since the certificate used to secure the connection to the VM is self-signed. The answer to this prompt will be remembered for subsequent connections, and is only prompted on the first connection.
-
-1. When prompted to enter the password, enter the Administrator password that was entered when the VM was provisioned.
-
-1. Once connected, the terminal will change to show the name of the Linux VM, similar to the following. This tells you which VM you are connected to.
-
-    ```cmd/sh
-    demouser@AZ-220-VM-EDGEGW-{YOUR-ID}:~$
+    ```bash
+    sudo /etc/iotedge/configedge.sh "{iot-edge-device-connection-string}"
     ```
 
-1. You will need to run the command to configure the Edge device to connect to IoT Hub as Administrator. Run the following `sudo` command to elevate the terminal to run as Administrator:
+    务必将 `{iot-edge-device-connection-string}` 占位符替换为先前为 IoT Edge 设备复制的连接字符串。
 
-    ```cmd/sh
-    sudo su -
-    ```
+    `/etc/iotedge/configedge.sh` 脚本是作为 Azure IoT Edge 运行时的一部分安装的。它可用于通过连接到 Azure IoT 中心所需的连接字符串对 Edge 设备进行配置 。
 
-1. The `/etc/iotedge/configedge.sh` script is used to configure the Edge device with the Connection String necessary to connect it to Azure IoT Hub. This script is installed as part of the Azure IoT Edge Runtime.
+    此命令完成后，将使用输入的连接字符串将 IoT Edge 设备配置为连接到 Azure IoT 中心。
 
-1. To configure the Edge device with the Connection String for Azure IoT Hub, run the following command:
+1. 稍等片刻。
 
-    ```cmd/sh
-    /etc/iotedge/configedge.sh "{iot-edge-device-connection-string}"
-    ```
-
-    Be sure to replace the `{iot-edge-device-connection-string}` placeholder with the Connection String you copied previously for your IoT Edge Device.
-
-1. Once this command completes, the IoT Edge Device will be configured to connect to Azure IoT Hub using the Connection String that was entered.
-
-1. After a moment, run the following command that will list out all the **IoT Edge Modules** currently running on the IoT Edge Device.
+1. 要列出当前在 IoT Edge 设备上运行的所有 **IoT Edge 模块**，请运行以下命令：
 
     ```sh
     iotedge list
     ```
 
-    After a moment, this command will show the `edgeAgent` and `edgeHub` modules are running. The output will look similar to the following:
+    片刻之后，此命令将显示 `edgeAgent` 和 `edgeHub` 模块正在运行。输出类似于以下内容：
 
     ```text
     root@AZ-220-VM-EDGEGW:~# iotedge list
@@ -439,156 +629,207 @@ In this exercise, you will connect the IoT Edge Device to Azure IoT Hub.
     edgeAgent        running          Up 18 seconds    mcr.microsoft.com/azureiotedge-agent:1.0
     ```
 
-    If an error is reported, then you'll need to double check the configurations are set correctly. For troubleshooting, the `iotedge check --verbose` command can be run to see if there are any errors.
+    如果报告了错误，则需要再次检查配置是否正确设置。为了排除故障，可以运行 `iotedge check --verbose` 命令来查看是否有任何错误。
 
-## Exercise 7: Open IoT Edge Gateway Device Ports for Communication
+### 练习 7：打开 IoT Edge 网关设备端口进行通信
 
-In this exercise, you will configure the Network Security Group (NSG) that secures access to the Azure IoT Edge Gateway from the Internet. The necessary ports for MQTT, AMQP, and HTTPS communications need to be opened so the downstream IoT device(s) can communicate with the gateway.
+在本练习中，将配置网络安全组 (NSG)，以确保从 Internet 访问 Azure IoT Edge 网关的安全。需要打开用于 MQTT、AMQP 和 HTTPS 通信的必要端口，以便下游 IoT 设备可以与网关通信。
 
-For the Azure IoT Edge Gateway to function, at least one of the IoT Edge hub's supported protocols must be open for inbound traffic from downstream devices. The supported protocols are MQTT, AMQP, and HTTPS.
+为使 Azure IoT Edge 网关正常运行，必须打开至少一个受 IoT Edge 中心支持的协议以接收来自下游设备的入站流量。受支持的协议为 MQTT、AMQP 和 HTTPS。
 
-The IoT communication protocols supported by Azure IoT Edge have the following port mappings:
+受 Azure IoT Edge 支持的 IoT 通信协议具有以下端口映射：
 
-| Protocol | Port Number |
+| 协议 | 端口号 |
 | --- | --- |
 | MQTT | 8883 |
 | AMQP | 5671 |
 | HTTPS<br/>MQTT + WS (Websocket)<br/>AMQP + WS (Websocket) | 443 |
 
-The IoT communication protocol chosen for your devices will need to have the corresponding port opened for the firewall that secures the IoT Edge Gateway device. In the case of this lab, an Azure Network Security Group (NSG) is used to secure the IoT Edge Gateway, so Inbound security rules for the NSG will be opened on these ports.
+为设备选择的 IoT 通信协议需要为防火墙打开相应的端口，以保护 IoT Edge 网关设备的安全。在此实验室中，将使用 Azure 网络安全组 (NSG) 来保护 IoT Edge 网关的安全，因此将在这些端口上打开 NSG 的入站安全规则。
 
-In a production scenario, you will only want to open the minimum number of ports for your devices to communicate. If you are using MQTT, then only open port 8883 for inbound communications. Opening additional ports will introduce addition security attack vectors that attackers could take exploit. It is a security best practice to only open the minimum number of ports necessary for your solution.
+在生产方案中，只需为设备打开最小数量的端口即可进行设备通信。如果使用的是 MQTT，则仅打开端口 8883 进行入站通信。打开其他端口将引入攻击者可利用的其他安全攻击途径。最好的安全做法是仅打开解决方案所需的最小端口数。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. Navigate to the Resource Group that contains the  **AZ-220-VM-EDGEGW-{YOUR-ID}** VM.
+1. 在 Azure 仪表板上，找到包含 **AZ-220-VM-EDGEGW-{YOUR-ID}** VM 的资源磁贴。
 
-1. On the Resource Group blade, click on the **AZ-220-VM-EDGEGW-{YOUR-ID}-nsg** Network Security Group (NSG) resource.
+    请注意，此资源组磁贴还包括指向关联的网络安全组的链接。
+  
+1. 在“资源”磁贴上，单击 **“AZ-220-VM-EDGEGW-_{YOUR-ID}_-nsg”**。
 
-1. On the Network security group blade, click on **Inbound security rules** under the Settings section.
+1. 在 **“网络安全组”** 边栏选项卡的 **“设置”** 下的左侧导航菜单处，单击 **“入站安全规则”**。
 
-1. On the **Inbound security rules** pane, click the **Add** button.
+1. 在 **“入站安全规则”** 窗格顶部，单击 **“添加”**。
 
-1. On the **Add inbound security rule** pane, change the **Destination port ranges** to `8883` and set the **Name** to `MQTT`. This will define an inbound security rule that will allow communication for the MQTT protocol to the IoT Edge Gateway.
+1. 在 **“添加入站安全规则”** 窗格的 **“目标端口范围”** 下，将值更改为 **“8883”**
 
-1. Click **Add** to save the new security rule.
+1. 在 **“协议”** 下，单击 **“TCP”**。
 
-1. To open ports for **AMQP** and **HTTPS** communication protocols, add two more rules with the following values:
+1. 在 **“名称”** 下，将值更改为 **MQTT**
 
-    | Destination port ranges | Name |
-    | :--- | :--- |
-    | 5671 | AMQP |
-    | 443 | HTTPS |
+1. 将所有其他设置保留为默认值，并单击 **“添加”**。
 
-1. With these three ports open on the Network Security Group (NSG), the downstream devices will be able to connect to the IoT Edge Gateway using either MQTT, AMQP, or HTTPS protocols.
+    这将定义入站安全规则，该规则将允许 MQTT 协议到 IoT Edge 网关的通信。
 
-## Exercise 8: Create Downstream Device Identity in IoT Hub
+1. 添加 MQTT 规则后，添加另外两个具有以下值的规则，即可打开 **AMQP** 和 **HTTPS** 通信协议的端口：
 
-In this exercise, you will create a new IoT Device identity in Azure IoT Hub for the downstream IoT device. This device identity will be configured so that the Azure IoT Edge Gateway is a parent device for this downstream device.
+    | 目标端口范围 | 协议 | 名称 |
+    | :--- | :--- | :--- |
+    | 5671 | TCP | AMQP |
+    | 443 | TCP | HTTPS |
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+   > **注释**：你可能需要使用窗格顶部工具栏中的 **“刷新”** 按钮来查看新规则的出现。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+1. 在网络安全组 (NSG) 上打开这三个端口后，下游设备将能够使用 MQTT、AMQP 或 HTTPS 协议连接到 IoT Edge 网关。
 
-1. On your Resource group tile, click **AZ-220-HUB-{YOUR-ID}** to navigate to the Azure IoT Hub.
+### 练习 8：在 IoT 中心中创建下游设备标识
 
-1. On the IoT Hub summary blade, click **IoT devices** under the Explorers section. This section of the IoT Hub blade allows you to manage the IoT Devices connected to the IoT Hub.
+在本练习中，将在 Azure IoT 中心为下游 IoT 设备创建一个新的 IoT 设备标识。将配置此设备标识，以便 Azure IoT Edge 网关成为此下游设备的父设备。
 
-1. Click the **New** button to begin adding a new IoT Device Identity to the IoT Hub.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-1. On the **Create a device** blade, enter `DownstreamDevice1` into the **Device ID** field. This is the device identity used for authentication and access control.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. Select **Symmetric key** for the **Authentication type**, and leave the **Auto-generate keys** box checked. This will have IoT Hub automatically generate the Symmetric keys for authenticating the device.
+1. 在 Azure 仪表板上，单击 **AZ-220-HUB-_{YOUR-ID}_** 即可打开 IoT 中心。
 
-1. Under **Parent device** click the **Set a parent device** link to begin configuring this downstream device to communicate with IoT Hub through the IoT Edge Gateway.
+1. 在 **“AZ-220-HUB-_{YOUR-ID}_”** 边栏选项卡上，在 **“资源管理器”** 左侧的导航菜单中，单击 **“IoT 设备”**。
 
-1. On the **Set an Edge device as a parent device** blade, select the `AZ-220-VM-EDGEGW-{YOUR-ID}` Device ID in the list of IoT Edge Devices.
+    IoT 中心边栏选项卡的此窗格允许你管理连接到 IoT 中心的 IoT 设备。
 
-1. Click **OK** to select the parent device.
+1. 在窗格顶部，要开始配置新的 IoT 设备，请单击 **“新建”**。
 
-1. Click **Save** to create the IoT Device identity for the downstream device.
+1. 在 **“创建设备”** 边栏选项卡的 **“设备 ID”** 选项下，输入 **“DownstreamDevice1”**。
 
-1. Once the `DownstreamDevice1` IoT Device Identity is created, click on the Device ID in the list. This will open the details view for this device.
+    这是用于身份验证和访问控制的设备标识。
 
-1. On the IoT Device summary pane, copy the **Primary Connection String** for the `DownstreamDevice1` IoT Device, and save it for reference later.
+1. 确保在 **“身份验证类型”** 下， 选中 **“对称密钥”**。
 
-## Exercise 9: Connect Downstream Device to IoT Edge Gateway
+1. 在 **“自动生成密钥”** 下，保留此框的选中状态。
 
-In this exercise, you will configure a pre-built Downstream Device to connect to the IoT Edge Gateway.
+    这将使 IoT 中心自动生成对设备进行身份验证的对称密钥。
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+1. 在 **“父设备”** 选项下，单击 **“设置父设备”**。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+    我们将配置此下游设备，以便通过之前在本实验室创建的 IoT Edge 网关设备与 IoT 中心通信。
 
-1. At the top of the Azure Portal click on the **Cloud Shell** icon to open up the **Azure Cloud Shell** within the Azure Portal. When the pane opens, choose the option for the **Bash** terminal within the Cloud Shell.
+1. 在 **“将 Edge 设备设置为父设备”** 边栏选项卡的 **“设备 ID”** 选项下，单击 **“AZ-220-VM-EDGEGW-_{YOUR-ID}_”**，然后单击 **“确定”**。
 
-1. Within the **Cloud Shell**, run the following command to download the **root CA** x.509 certificate for the Azure IoT Edge Gateway (`AZ-220-VM-EDGEGW-{YOUR-ID}`) virtual machine.
+1. 在 **“创建设备”** 边栏选项卡上，单击 **“保存”**，即可创建下游设备的 IoT 设备标识。
 
-    ```cmd/sh
-    download certificates/certs/azure-iot-test-only.root.ca.cert.pem
+1. 在 **“IoT 设备”** 窗格顶部，单击 **“刷新”**。
+
+1. 在 **“设备 ID”** 下，单击 **DownstreamDevice1**。 
+
+    这将打开该设备的详细信息视图。
+
+1. 在“IoT 设备摘要”窗格中，在 **“主连接字符串”** 字段的右侧，单击 **“复制”**。
+
+1. 保存连接字符串，以便以后引用。
+
+    务必注意此连接字符串适用于 DownstreamDevice1。
+
+### 练习 9：将下游设备连接到 IoT Edge 网关
+
+在本练习中，将配置预生成的下游设备以连接到 IoT Edge 网关。
+
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
+
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
+
+1. 如果未打开 Cloud Shell，请在 Azure 门户工具栏上单击 **“Cloud Shell”**。
+
+    确保将环境设置为 **Bash**。
+
+    > **注释**：如果 Cloud Shell 已打开，并且你仍然连接到 Edge 设备，请使用 `exit` 命令关闭 SSH 会话。
+
+1. 在 Cloud Shell 命令提示符处，要下载 IoT Edge 网关虚拟机的根 CA X.509 证书，请输入以下命令：
+
+    ```bash
+    download lab12/certs/azure-iot-test-only.root.ca.cert.pem
     ```
 
-    The Azure IoT Edge Gateway was configured (within the `/etc/iotedge/config.yaml` file) previously to use this **root CA** x.509 certificate for encrypting communications with any downstream devices connecting to the gateway. This x.509 certificate will need to be copied to the downstream devices so they can use it to encrypt communications with the gateway.
+    Azure IoT Edge 网关以前配置在 `/etc/IoT Edge/config.yaml` 文件中，以便使用此根 CA X.509 证书来加密与连接到网关的任何下游设备的通信。此 X.509 证书将需要复制到下游设备，以便下游设备可以使用该证书来加密与网关的通信。
 
-1. Copy the `azure-iot-test-only.root.ca.cert.pem` x.509 certificate file to the `/LabFiles/DownstreamDevice` directory where the source code for the downstream IoT device is located.
+1. 将 `azure-iot-test-only.root.ca.cert.pem` X.509 证书文件复制到下游 IoT 设备源代码所在的 `/Starter/DownstreamDevice` 目录中。
 
-1. Open the `/LabFiles/DownstreamDevice` directory within **Visual studio Code**.
+    > **重要事项**：确保文件具有正确的名称。  它的名称可能与以前的实验室不同，例如添加了 `(1)`，因此如有必要，请在复制后重命名。
 
-1. Open the **SimulatedDevice.cs** source code file.
+1. 打开 Visual Studio Code。
 
-1. Locate the declaration for the `s_connectionString` variable and replace the value placeholder with the **IoT Hub Connection String** for the **DownstreamDevice1** IoT Device.
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**。
 
-1. Modify the **IoT Hub Connection String** to include the `GatewayHostName` property with the value set to the full **DNS name** for the IoT Edge Gateway Device (`AZ-220-VM-EDGEGW`).
+1. 在 **“打开文件夹”** 对话框中，导航到实验室 12 的“初学者”文件夹，单击 **“DownstreamDevice”**，然后单击 **“选择文件夹”**。
 
-    The Connection String will match the following format:
+    你会看到“资源管理器”窗格中列出的 azure-iot-test-only.root.ca.cert.pem 文件以及 SimulatedDevice.cs 文件。
+
+    > **注释**：如果看到有关还原 dotnet 和/或加载 C＃扩展的消息，请完成安装。
+
+1. 在“资源管理器”窗格中，单击 **“SimulatedDevice.cs”**。
+
+1. 找到 `s_connectionString` 变量的声明，然后将占位符的值替换为 `DownstreamDevice1` IoT 设备的 IoT 中心连接字符串。
+
+1. 修改 `s_connectionString` 的值，使其包括 `GatewayHostName` 属性，并将 GatewayHostName 的值设置为 IoT Edge 网关设备的完整 DNS 名称 (`AZ-220-VM-EDGEGW`)。
+
+    连接字符串将与以下格式匹配：
 
     ```text
     HostName=<IoT-Hub-Name>.azure-devices.net;DeviceId=DownstreamDevice1;SharedAccessKey=<IoT-Device-Primary-Key>;GatewayHostName=<IoT-Edge-Device-DNS-Name>
     ```
 
-    Be sure to replace the placeholders with the appropriate values:
+    请务必使用适当的值替换上述占位符：
 
-    - `<IoT-Hub-Name>`: The Name of the Azure IoT Hub.
-    - `<IoT-Device-Primary-Key>`: The Primary Key for the **DownstreamDevice1** IoT Device in Azure IoT Hub.
-    - `<IoT-Edge-DNS-Name>`: The DNS name set for the **AZ-220-VM-EDGEGW**.
+    * `<IoT-Hub-Name>`: Azure IoT 中心的名称。
+    * `<IoT-Device-Primary-Key>`: Azure IoT 中心中 **DownstreamDevice1** IoT 设备的主键。
+    * `<IoT-Edge-DNS-Name>`: 为 **AZ-220-VM-EDGEGW** 设置的 DNS 名称。
 
-    The `s_connectionString` variable with the Connection String value will look similar to the following:
+    带有连接字符串值的 `s_connectionString` 变量类似于以下内容：
 
     ```csharp
     private readonly static string s_connectionString = "HostName=AZ-220-HUB-1119.azure-devices.net;DeviceId=DownstreamDevice1;SharedAccessKey=ygNT/WqWs2d8AbVD9NAlxcoSS2rr628fI7YLPzmBdgE=;GatewayHostName=AZ-220-VM-EDGEGW.eastus.cloudapp.azure.com";
     ```
 
-1. Save the file.
+1. 在 **“文件”** 菜单中，单击 **“保存”**。
 
-1. Locate the **Main** method. This method contains the code that instantiates the `DeviceClient` using the configured Connection String, and specifies **MQTT** as the transport protocol to use for communicating with the Azure IoT Edge Gateway.
+1. 向下滚动以找到 **Main** 方法，然后花点时间查看代码。
 
-    ```csharps_deviceClient = DeviceClient.CreateFromConnectionString(s_connectionString, TransportType.Mqtt);
-    SendDeviceToCloudMessagesAsync();
+    该方法包含使用配置的连接字符串实例化 `DeviceClient` 的代码，并将 `MQTT` 指定为用于与 Azure IoT Edge 网关通信的传输协议。
+
+    ```csharp
+    s_deviceClient = DeviceClient.CreateFromConnectionString(s_connectionString, TransportType.Mqtt);
+    SendDeviceToCloudMessagesAsync().GetAwaiter().GetResult();;
     ```
 
-    This method also executes the **InstallCACert** method which has some code to automatically install the **root CA** x.509 certiifcate to the local machine. And it executes the **SendDeviceToCloudMessagesAsync** method that sends event telemetry from the simulated device.
+    此方法还执行 **InstallCACert** 方法，该方法具有一些代码，可以将根 CA X.509 证书自动安装到本地计算机。它还会执行可将事件遥测数据从模拟设备发送的 **SendDeviceToCloudMessagesAsync** 方法。
 
-1. Locate the **SendDeviceToCloudMessagesAsync** method. This method contains the code that generates the simulated device telemetry, and sends the events to the IoT Edge Gateway.
+    > **注释**：不必考虑 `GetAwaiter().GetResult()` 调用，这是 C# 如何处理 C# 7.1 之前的 `Main` 方法的异步调用项目。  由于本实验室不具备这种支持水平，因此需要一些临时解决方法。
 
-1. Locate the **InstallCACert** and browse the code that installed the **root CA** x.509 certificate to the local machine certificate store.
+1. 找到 **SendDeviceToCloudMessagesAsync** 方法，然后花点时间查看代码。
 
-1. Open a command-prompt / terminal and navigate to the location of the `/LabFiles/DownstreamDevice` directory.
+    此方法包含生成模拟设备遥测数据的代码，并将事件发送到 IoT Edge 网关。
 
-1. Run the following command to build the code for the **DownstreamDevice1** simulated device, and execute it to start sending device telemetry:
+1. 找到 **InstallCACert** 并浏览将根 CA X.509 证书安装到本地计算机证书存储的代码。
 
-    ```cmd/sh
+1. 在 Visual Studio Code 中，仍然打开 `SimulatedDevice.cs` 文件，并在 **“终端”** 菜单中，选择 **“新终端”**。
+
+1. 在 Visual Studio Code 底部的 **“终端”** 窗口中，运行以下命令：
+
+    ```bash
     dotnet run
     ```
 
-1. When the app installed the **x.509 certificate** on the local machine so it can use it to authenticate with the IoT Edge Gateway, it may prompt asking if you would like to install the certificate. Click **Yes** to allow it and continue.
+    此命令将为要开始发送设备遥测数据的 **DownstreamDevice1** 模拟设备生成并运行代码。
 
-1. Once the simulated device is running, the console output will display the events being sent to the Azure IoT Edge Gateway.
+    > **备注**：当应用尝试在本地计算机上安装 X.509 证书（以便可以使用它来向 IoT Edge 网关进行身份验证）时，你可能会看到一个安全警告，询问有关安装证书的问题。需要单击 **“是”**，以允许该应用继续运行。
 
-    The terminal output will look similar to the following:
+1. 如果询问你是否要安装证书，请单击 **“是”**。
 
-    ```cmd/sh
+1. 模拟设备运行后，控制台输出将显示正在发送到 Azure IoT Edge 网关的事件。
+
+    终端输出类似于以下内容：
+
+    ```bash
     IoT Hub Quickstarts #1 - Simulated device. Ctrl-C to exit.
 
     User configured CA certificate path: azure-iot-test-only.root.ca.cert.pem
@@ -600,31 +841,35 @@ In this exercise, you will configure a pre-built Downstream Device to connect to
     11/27/2019 4:18:29 AM > Sending message: {"temperature":32.81164186439088,"humidity":72.6606041624493}
     ```
 
-1. Leave the simulated device running while you move on to the next unit.
+    > **注释**：如果设备发送在第一次发送时暂停的时间似乎超过了一秒，可能是你之前未正确添加 NSG 传入规则，因此 MQTT 流量被阻止了。  查看 NSG 配置。
 
-## Exercise 10: Verify Event Flow
+1. 在继续进行下一个练习时，让模拟设备保持运行状态。
 
-In this exercise, you will use the Azure CLI to monitor the events being sent to Azure IoT Hub from the downstream IoT Device through the IoT Edge Gateway. This will validate that everything is working correctly.
+### 练习 10：验证事件流
 
-1. If necessary, log in to your Azure portal using your Azure account credentials.
+在本练习中，将使用 Azure CLI 监视通过 IoT Edge 网关从下游 IoT 设备发送到 Azure IoT 中心的事件。这将验证一切是否正常运行。
 
-    If you have more than one Azure account, be sure that you are logged in with the account that is tied to the subscription that you will be using for this course.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-1. At the top of the Azure Portal click on the **Cloud Shell** icon to open up the **Azure Cloud Shell** within the Azure Portal. When the pane opens, choose the option for the **Bash** terminal within the Cloud Shell.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-1. Within the **Cloud Shell**, run the following command to monitor the stream of events flowing to the Azure IoT Hub. This will verify that events from the simulate device, being sent to the IoT Edge Gateway, are being received by the Azure IoT Hub.
+1. 如果未运行 Cloud Shell，请在 Azure 门户工具栏上单击 **“Cloud Shell”**。
 
-    ```cmd/sh
-    az iot hub monitor-events -n <IoT-Hub-Name>
+1. 如果仍通过 Cloud Shell 中的 SSH 连接连接到 Edge 设备，请退出该连接。
+
+1. 在 Cloud Shell 命令提示符处，运行以下命令，即可监视流到 Azure IoT 中心的事件流：
+
+    ```bash
+    az iot hub monitor-events -n AZ-220-HUB-{YOUR-ID}
     ```
 
-    Be sure to replace the `<IoT-Hub-Name>` placeholder for the `-n` parameter with the name of your Azure IoT Hub.
+    务必将 `-n` 参数的 `{YOUR-ID}` 占位符替换为 Azure IoT 中心的名称。
 
-    The `az iot hub monitor-events` command enables you to monitor device telemetry & messages sent to an Azure IoT Hub.
+    使用 `az iot hub monitor-events` 命令即可监视发送到 Azure IoT 中心的设备遥测数据和消息。这将验证 Azure IoT 中心是否已接收到来自模拟设备且发送到 IoT Edge 网关的事件。
 
-1. With everything working correctly, the output from the `az iot hub monitor-events` command will look similar to the following:
+1. 在一切正常运行的情况下，`az iot hub monitor-events` 命令的输出类似于以下内容：
 
-    ```cmd/sh
+    ```bash
     chris@Azure:~$ az iot hub monitor-events -n AZ-220-HUB-1119
     Starting event monitor, use ctrl-c to stop...
     {
@@ -641,7 +886,4 @@ In this exercise, you will use the Azure CLI to monitor the events being sent to
     }
     ```
 
-Once you have completed this lab and verified the event flow, exit the console application by pressing **CTRL+C**.
-
-
-
+完成本实验室并验证事件流后，请按 **CTRL+C**，退出控制台应用程序。

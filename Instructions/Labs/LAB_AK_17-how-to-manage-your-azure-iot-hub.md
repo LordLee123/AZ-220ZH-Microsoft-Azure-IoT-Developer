@@ -1,574 +1,646 @@
----
+﻿---
 lab:
-    title: 'Lab 17: How to manage your Azure IoT Hub'
-    module: 'Module 9: Solution Testing, Diagnostics, and Logging'
+    title: '实验室 17：如何管理你的 Azure IoT 中心'
+    module: '模块 9：解决方案测试、诊断和记录'
 ---
 
-# How to manage your Azure IoT Hub
+# 如何管理你的 Azure IoT 中心
 
-Our asset tracking solution is getting bigger, and provisioning devices one by one (even through DPS) cannot scale. We want to use DPS to enroll many devices automatically and securely using x.509 certificate authentication. Within our solution, we will use sensors to track our assets being transported. Each time a sensor is added in a transportation box, it will auto provision through DPS. We want to have a metric for the warehouse manager of how many boxes were "tagged" and need to count the Device Connected events from IoT Hub.
+## 实验室场景
 
-In this lab, you will setup a Group Enrollment within Device Provisioning Service (DPS) using a Root CA x.509 certificate chain. You will configure the linked IoT Hub to using monitoring to track the number of connected devices and telemetry messages sent, as well as send connection events to a log. Additionally you will create an alert that will be triggered based upon the average number of devices connected. You will the configure 10 simulated IoT Devices that will authenticate with DPS using a Device CA Certificate generated on the Root CA Certificate chain. The IoT Devices will be configured to send telemetry to the the IoT Hub.
+Contoso 的资产监视和跟踪解决方案运行良好。该系统在整个包装和运输过程中提供持续监控。你已经在 DPS 中实现了组注册，以大规模预配设备，并且当集装箱到达目的地时，IoT 设备通过 DPS“解除授权”，以便可以将其重新用于以后的装运。
 
-In this lab, you will:
+为了帮助管理设备利用率和解决方案的其他特征，IT 部门已要求你的团队在 IoT 解决方案中实现 Azure 监视和日志记录服务。
 
-* Verify Lab Prerequisites
-* Enable diagnostic logs.
-* Enable metrics.
-* Set up alerts for those metrics.
-* Download and run an app that simulates IoT devices connecting via X509 and sending messages to the hub.
-* Run the app until the alerts begin to fire.
-* View the metrics results and check the diagnostic logs.
+你同意首先实现一些简单的指标，这些指标可以在你承担任何其他工作负荷之前由 IT 人员进行审查。
 
+在本实验室中，你将实现监视以跟踪已连接设备和已发送遥测消息的数量，以及将连接事件发送到日志。另外，你将创建一个警报，该警报将基于连接的平均设备数触发。要测试系统，你将配置 10 个模拟的 IoT 设备，这些设备将使用在根 CA 证书链上生成的设备 CA 证书向 DPS 进行身份验证。IoT 设备将配置为将遥测发送到 IoT 中心。
 
-## Exercise 1: Verify Lab Prerequisites
+将创建以下资源：
 
+![实验室 17 体系结构](media/LAB_AK_17-architecture.png)
 
-## Exercise 2: Set Up and Use Metrics and Diagnostic Logs with an IoT Hub
+## 本实验室概览
 
-If you have an IoT Hub solution running in production, you want to set up some metrics and enable diagnostic logs. Then if a problem occurs, you have data to look at that will help you diagnose the problem and fix it more quickly. In this lab, you'll see how to enable the diagnostic logs, and how to check them for errors. You'll also set up some metrics to watch, and alerts that fire when the metrics hit a certain boundary.
+在本实验室中，你将完成以下活动：
 
-For example, you could have an e-mail sent to you when the number of connected devices exceed a certain threshold, or when the number of messages used gets close to the quota of messages allowed per day for the IoT Hub.
+* 验证实验室先决条件
+* 启用诊断日志。
+* 启用指标。
+* 为这些指标设置警报。
+* 下载并运行一个应用，该应用模拟通过 X.509 连接并将消息发送到中心的 IoT 设备。
+* 运行应用，直到开始触发警报。
+* 查看指标结果并检查诊断日志。
 
-## Setup Resources
+## 实验室说明
 
-In order to complete this lab, you will need to reuse a number of resources from a previous lab - **Automatic Enrollment of Devices in DPS** as well as a storage account.
+### 练习 1：验证实验室先决条件
 
-1. Open a new tab on your browser and navigate to the [Azure Cloud Shell](https://shell.azure.com/).
+本实验室假定以下 Azure 资源可用：
 
-1. Login to you Azure Subscription (the same one you used for your IoT Central App) and if your account is a member of more than one directory, choose the directory you used for your IoT Central account.
+| 资源类型 | 资源名称 |
+| :-- | :-- |
+| 资源组 | AZ-220-RG |
+| IoT 中心 | AZ-220-HUB-{YOUR-ID} |
+| 设备预配服务 | AZ-220-DPS-{YOUR-ID} |
+| 存储帐户 | az220storage{your-id} |
 
-1. Once the bash shell is open, create** a **monitoring** folder, and navigate to it by entering the following commands:
+如果这些资源不可用，则需要在继续练习 2 之前请按照以下说明运行 **lab17-setup.azcli** 脚本。脚本文件包含在本地克隆作为开发环境配置（实验室 3）的 GitHub 存储库中。
+
+**lab17-setup.azcli** 脚本编写为在 **bash** shell 环境中运行，执行此操作的最简单方法是在 Azure Cloud Shell 中进行。
+
+1. 使用浏览器，打开 [Azure Cloud Shell](https://shell.azure.com/)，并使用本课程使用的 Azure 订阅登录。
+
+    如果系统提示设置 Cloud Shell 的存储，请接受默认设置。
+
+1. 验证 Azure Cloud Shell 是否正在使用 **Bash**。
+
+1. 在 Azure Shell 工具栏上，单击**上传/下载文件** （从右数第四个按钮）。
+
+1. 在下拉菜单中，单击 **“上传”**。
+
+1. 在“文件选择”对话框中，导航到配置开发环境时下载的 GitHub 实验室文件的文件夹位置。
+
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
+
+    * Allfiles
+      * 实验室
+          * 17 - 如何管理 Azure IoT 中心
+            * 设置
+
+    lab17-setup.azcli 脚本文件位于实验室 17 的配置文件夹中。
+
+1. 选择 **lab17-setup.azcli** 文件，然后单击 **“打开”**。
+
+    文件上传完成后，将显示一条通知。
+
+1. 若要验证在 Azure Cloud Shell 中已上传了正确文件，请输入以下命令：
 
     ```bash
-    mkdir ~/monitoring
-    cd ~/monitoring
+    ls
     ```
 
-1. To create an empty file in which we will copy the setup script, enter the following commands:
+    使用 `ls` 命令列出当前目录的内容。你应该看到列出的 lab17-setup.azcli 文件。
+
+1. 若要为此实验室创建一个包含安装脚本的目录，然后移至该目录，请输入以下 Bash 命令：
 
     ```bash
-    touch setup.sh
-    chmod +x setup.sh
+    mkdir lab17
+    mv lab17-setup.azcli lab17
+    cd lab17
     ```
 
-1. To edit the contents of the **setup.sh** file, use the **{ }** icon in Azure Cloud Shell to open the **Cloud Editor**.
+1. 为了确保 **lab17-setup.azcli** 脚本具有执行权限，请输入以下命令：
 
-    To open the **setup.sh** file, you will have to expand the **monitoring** node in the **Files** list to locate it.
+    ```bash
+    chmod +x lab17-setup.azcli
+    ```
 
-1. Copy the following script into the cloud editor:
+1. 在 Cloud Shell 工具栏上，要编辑 lab17-setup.azcli 文件，请单击 **“打开编辑器”** （右侧的第二个按钮 - **{ }**）。
+
+1. 在 **“文件”** 列表中，展开 lab17 文件夹并打开脚本文件，单击 **“lab17”**，然后单击 **“lab17-setup.azcli”**。
+
+    编辑器现在将显示 **lab17-setup.azcli** 文件的内容。
+
+1. 在编辑器中，更新 `{YOUR-ID}` 和 `{YOUR-LOCATION}` 变量的值。
+
+    以下面的示例为例，需要将 `{YOUR-ID}` 设置为在本课程开始时创建的唯一 ID，即 **CAH191211**，然后将 `{YOUR-LOCATION}` 设置为对你的资源有意义的位置。
 
     ```bash
     #!/bin/bash
 
     YourID="{YOUR-ID}"
-    RGName="AZ-220"
-    Location="westus"
-    IoTHubName="$RGName-HUB-$YourID"
-    DPSName="$RGName-DPS-$YourID"
+    RGName="AZ-220-RG"
+    IoTHubName="AZ-220-HUB-$YourID"
+    DPSName="AZ-220-DPS-$YourID"
     DeviceName="asset-track"
-    StorageAccountName="$RGName-STORAGE-$YourID"
-
-    # Storage Account name must be in lowercase with no '-'
-    ToLowerAlphaNum () {
-        echo $1 | tr '[:upper:'] '[:lower:]' | tr -cd '[:alnum:]'
-    }
-
-    StorageAccountName=$( ToLowerAlphaNum $StorageAccountName )
-
-    # create resource group
-    az group create --name $RGName --location $Location -o Table
-
-    # create IoT Hub
-    az iot hub create --name $IoTHubName -g $RGName --sku S1 --location $Location -o Table
-
-    # create DPS
-    az iot dps create --name $DPSName -g $RGName --sku S1 --location $Location -o Table
-
-    # Get IoT Hub Connection String so DPS can be linked
-    IoTHubConnectionString=$(
-        az iot hub show-connection-string --hub-name $IoTHubName --query connectionString --output tsv
-    )
-
-    # Link IoT Hub with DPS
-    az iot dps linked-hub create --dps-name $DPSName -g $RGName --connection-string $IoTHubConnectionString --location $Location
-
-    # Create a Storage Account
-    az storage account create --name $StorageAccountName --resource-group $RGName --location=$Location --sku Standard_LRS -o Table 
-
-    StorageConnectionString=$( az storage account show-connection-string --name $StorageAccountName -o tsv )
+    Location="{YOUR-LOCATION}"
     ```
 
-    > [!NOTE] Review this script. You can see that it perform the following actions (and create resources if they don't already exist):
-    > * Builds the resource names
-    >   * Note that the storage account name is set to lowercase with no dashes to match the naming rules.
-    > * Create Resource Group
-    > * Create IoT Hub
-    > * Create DPS
-    > * Link IoT Hub and DPS
-    > * Create Storage Account
+    > **注释**：  `{YOUR-LOCATION}` 变量应设置为该区域的短名称。输入以下命令，可以看到可用区域及其短名称的列表（**名称**列）：
+    >
+    > ```bash
+    > az account list-locations -o Table
+    >
+    > DisplayName           Latitude    Longitude    Name
+    > --------------------  ----------  -----------  ------------------
+    > 东亚            22.267      114.188      eastasia
+    > 东南亚       1.283       103.833      southeastasia
+    > 美国中部            41.5908     -93.6208     centralus
+    > 美国东部               37.3719     -79.8164     eastus
+    > East US 2             36.6681     -78.3889     eastus2
+    > ```
 
-1. In order to specify the correct resource names and location, update the following variables at the top of the file:
+1. 要保存对文件所做的更改并关闭编辑器，请单击编辑器窗口右上角的 **“...”**，然后单击 **“关闭编辑器”**。
 
-    * YourID
-    * RGName
-    * Location
+    如果提示保存，请单击 **“保存”**，编辑器将会关闭。
 
-    > [!NOTE] If you have existing resources you wish to reuse, ensure you set the **YourID** value to the same you used before, as well as the same **RGName** and **Location**.
+    > **注释**：  可以使用 **CTRL+S** 随时保存，使用 **CTRL+Q** 关闭编辑器。
 
-1. To save the edited **setup.sh** file, press **CTRL-Q**. If prompted to save you changes before closing the editor, click **Save**.
-
-1. To run the **setup.sh** script, run the following:
+1. 要创建本实验室所需的资源，请输入以下命令：
 
     ```bash
-    ./setup.sh
+    ./lab17-setup.azcli
     ```
 
-    > [!NOTE] If the IoT Hub and DPS resources already exist, you will see red warnings stating the name is not available - you can ignore these errors.
+    运行此脚本可能需要几分钟。每个步骤完成时，你将会看到 JSON 输出。
 
-You have now ensured the resources are available for this lab. Next, we shall setup monitoring and logging.
+    该脚本将首先创建一个名为 **“AZ-220-RG”** 的资源组，然后将你的 IoT 中心命名为 **“AZ-220-HUB-{YourID}”**，并将设备预配服务命名为 **“AZ-220-DPS-{YourID}”**。如果服务已经存在，将显示相应的消息。该脚本将链接你的 IoT 中心和 DPS。然后，脚本将创建一个名为 **“az220storage{your-id}”** 的存储帐户。
 
+    现在，你应该可以继续进行本实验室的练习 2。
 
+### 练习 2：通过 IoT 中心设置和使用指标和诊断日志
 
+Azure 资源日志是 Azure 资源发出的描述其内部操作的平台日志。所有资源日志共享一个通用的顶级架构，每个服务都可以灵活地为自己的事件发出独特的属性。
 
+如果有 IoT 中心解决方案在生产中运行时，你需要设置各种指标并启用诊断日志。然后，如果出现问题，则可以查看数据，这将有助于你诊断问题并更快地解决问题。
 
-## Exercise 3: Enable Logging
+在本练习中，你将启用诊断日志并使用它们来检查错误。你还将设置一些要监视的指标，并在指标达到特定边界值时发出警报。
 
-Azure Resource logs are platform logs emitted by Azure resources that describe their internal operation. All resource logs share a common top-level schema with the flexibility for each service to emit unique properties for their own events.
+#### 任务 1：启用诊断
 
-1. Sign in to the **Azure portal** and navigate to your IoT hub.
+1. 如有必要，请使用 Azure 帐户凭据登录到 Azure 门户。
 
-1. In the left hand navigation, under **Monitoring**, select **Diagnostic settings**.
+    如果有多个 Azure 帐户，请确保使用与该课程将使用的订阅绑定的帐户登录。
 
-    > [!NOTE] Diagnostics are disabled by default.
+1. 在 Azure 仪表板上，单击 **AZ-220-HUB-{YOUR-ID**。
 
-1. At the top of the **Diagnostic settings** page, under **Subscription**, select the subscription you used to create the IoT Hub.
+    你的仪表板应在 AZ-220-RG 资源组磁贴上具有指向 IoT 中心的链接。
 
-1. Under **Resource group**, select the resource group you used for this lab - "AZ-220-RG".
+1. 在左侧导航菜单中，在 **“监视”** 下，单击 **“诊断设置”**。
 
-1. Under **Resource type**, select **IoT Hub**.
+    > **注释**：当前文档建议默认情况下可能禁用“诊断”。如果是这样，你可能需要“打开诊断”才能为 IoT 中心收集诊断数据。当你单击 **“打开诊断”** 时，**“诊断设置”** 边栏选项卡将打开。
 
-1. Under **Resource**, select the IoT Hub you are using for this lab - **AZ-220-HUB-\<INITIALS-DATE\>**.
+1. 在 **“诊断设置”** 窗格的 **“名称”** 下，单击 **“添加诊断设置”**。
 
-    Once you select the resource, the page will update with the option to turn on diagnostics, as well as a list of available metrics to monitor.
+1. 在 **“诊断设置名称”** 文本框中，输入 **“diags-hub”**
 
-1. To turn on diagnostics, click **Turn on diagnostics**.
+1. 花一点时间查看 **“目标详细信息”** 下面列出的选项。
 
-    The **Diagnostic settings** detail pane will be shown.
+    你会看到有 3 个可用于路由指标的选项 - 你可以通过以下链接了解每个指标的详细信息：
 
-1. Under **Name**, enter **diags-hub**.
+    * [将 Azure 资源日志存档到存储帐户](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/resource-logs-collect-storage)
+    * [将 Azure 监视数据流式传输到事件中心](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/stream-monitoring-data-event-hubs)
+    * [在 Azure Monitor 的 Log Analytics 工作区中收集 Azure 资源日志](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/resource-logs-collect-workspace)
 
-    You can see that there are 3 options available for routing the metrics - you can learn more about each by following the links below:
+    在本实验室中，我们将使用存储帐户选项。
 
-    * [Archive Azure resource logs to storage account](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/resource-logs-collect-storage)
-    * [Stream Azure monitoring data to an event hub](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/stream-monitoring-data-event-hubs)
-    * [Collect Azure resource logs in Log Analytics workspace in Azure Monitor](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/resource-logs-collect-workspace)
+1. 在 **“目标详细信息”** 下，单击 **“存档到存储帐户”**。
 
-    In this lab we will use the storage account option.
+    选择此目标选项后，其他字段将变为可用，包括用于指定日志类别的 **“保留期(天)”** 的选项。
 
-1. Check **Archive to a storage account** and the **Storage account** configuration section will appear.
+    > **注释**：花一点时间查看有关存储帐户和成本的备注。
 
-1. To specify the storage account to use, click **Configure**.
+1. 对于 **“订阅”** 字段，请选择用于创建 IoT 中心的订阅。
 
-    The **Select a storage account** pane will appear.
+1. 对于 **“存储帐户”** 字段，请选择 **az220storage{your-id}** 存储帐户。
 
-    > [!NOTE] In production, you should not use an existing storage account that has other, non-monitoring data stored in it so that you can better control access to monitoring data. If you are also archiving the Activity log to a storage account though, you may choose to use that same storage account to keep all monitoring data in a central location.
+    该帐户是由 lab17-setup.azcli 脚本创建的。如果下拉列表中未列出该帐户，则可能需要手动创建一个帐户（请与你的讲师联系）。
 
-1. On the  **Select a storage account** pane, under **Subscription**, select the subscription you used to create the storage account earlier.
+1. 在 **“诊断设置”** 边栏选项卡的 **“类别详细信息”** 下，单击 **“连接”**，然后单击 **“DeviceTelemetry”**。
 
-1. Under **Storage account**, select the storage account you created earlier.
+1. 对于你选择的每个日志类别，在 **“保留期(天)”**字段中，输入 **“7”** 
 
-1. To complete the storage account selection, click **OK**.
+1. 在边栏选项卡顶部，单击 **“保存”**，然后关闭边栏选项卡
 
-    The **Select a storage account** pane will close and the specified storage account will be displayed under **Storage account**.
+    你现在应该处于 IoT 中心的 **“诊断设置”** 窗格中，并应该看到 **“诊断设置”** 已更新，用以显示你刚刚创建的 **“diags-hub”** 设置。
 
-1. Under **log**, check **Connections** and **Device Telemetry** and then update the **Retention (days)** value for each to **7**. You can do this by either moving the slider or directly entering **7** into the value textbox.
+    稍后，当你查看诊断日志时，你将能够看到设备的连接和断开日志记录。
 
-1. Click **Save** to save the settings.
+#### 任务 2：设置指标
 
-1. Close the **Diagnostics settings** pane.
+在本任务中，你将设置各种指标，以监视何时将消息发送到你的 IoT 中心。
 
-    The main **Diagnostics settings** page is displayed - you should see that the list of **Diagnostics settings** has now been updated to show the **diags-hub** setting you just created.
+1. 确保已打开 IoT 中心边栏选项卡。
 
-Later, when you look at the diagnostic logs, you'll be able to see the connect and disconnect logging for the device.
+    在上一任务结束时，你停留在 IoT 中心边栏选项卡的 **“诊断设置”** 窗格。
 
-## Setup Metrics
+1. 在左侧导航菜单中，在 **“监控”** 下方，单击 **“指标”** 。
 
-Now set up some metrics to watch for when messages are sent to the hub.
+    将显示一个显示新的空图表的 **“指标”** 窗格。
 
-1. In the left hand navigation area, under **Monitoring**, click **Metrics**.
+1. 在屏幕右上角，要更改图表的时间范围和时间粒度，请单击 **“过去 24 小时（自动）”**。
 
-    The **Metrics** pane is displayed showing a new, empty, chart.
+1. 在出现的上下文菜单的 **“时间范围”** 下，单击 **“过去 4 小时”**。
 
-1. To change the time range and granularity for the chart, at the top-right of the screen, click **Last 24 hours (Automatic)**.
+1. 在同一上下文菜单中的 **“时间粒度”** 下，单击 **“1 分钟”**，并在 **“显示时间为”** 下，确保选中 **“本地”**。
 
-1. In the dropdown that appears, select **Last 4 hours** for **Time Range**, and set **Time Granularity** to **1 minute**, and ensure **Show time as** is set to **local time**.
+1. 要保存你的时间设置，请单击 **“应用”**。
 
-1. Click **Apply** to save these settings.
+1. 花一分钟时间检查用于指定图表指标的设置。
 
-1. Under the **Chart Title** and toolbar, you will see a default metric entry.
+    在 **“图表标题”** 和图表工具栏下，你将看到一个指定指标的区域。 
 
-    We will now add a metric to monitor how many telemetry messages have been sent.
+    * 请注意，**“范围”** 已经设置为 **“AZ-220-HUB-{YOUR-ID}”**。
+    * 请注意，**“指标命名空间”** 已经设置为 **“IoT 中心标准指标”**。
 
-1. Note that the **SCOPE** is already set to the IoT Hub.
+    > **注释**：默认情况下，只有一个指标命名空间可用。命名空间是一种将相似指标进行分类或分组到一起的方法。通过使用命名空间，你可以在可能收集不同见解或性能指标的各组指标之间实现隔离。例如，你可能有一个名为 **“az220memorymetrics”** 的命名空间，用于跟踪应用配置文件的内存使用指标。另一个命名空间称为 **“az220apptransaction”** 可能会跟踪有关应用程序中用户交易的所有指标。你可以在[此处](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/metrics-custom-overview?toc=%2Fazure%2Fazure-monitor%2Ftoc.json#namespace)了解有关自定义指标和命名空间的更多信息。
 
-1. Under **METRIC NAMESPACE**, note that the **IoT Hub standard metrics** namespace is selected.
+    接下来的步骤是添加一个指标，用于监控已发送到 IoT 中心的遥测消息的数量。
 
-    > [!NOTE] By default, there is only one metric namespace available. Namespaces are a way to categorize or group similar metrics together. By using namespaces, you can achieve isolation between groups of metrics that might collect different insights or performance indicators. For example, you might have a namespace called **az220memorymetrics** that tracks memory-use metrics which profile your app. Another namespace called **az220apptransaction** might track all metrics about user transactions in your application. You can learn more about custom metrics and namespaces [here](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/metrics-custom-overview?toc=%2Fazure%2Fazure-monitor%2Ftoc.json#namespace).
+1. 在 **“指标”** 下拉列表中，单击 **“已发送遥测信息”**。
 
-1. In the **METRIC** dropdown list, select **Telemetry messages sent**. Notice how many metrics are available!
+    请注意，你可以从中选择大量指标！
 
-1. Under **AGGREGATION**, select **Sum**. Notice there are 4 aggregation operations available - *Avg*, *Min*, *Max* and *Sum*.
+1. 在 **“聚合”** 下，确保选中 **“总和”**。
 
-    We have completed the specification for the first metric. Notice that the chart title has updated to reflect the metric chosen. Now let's add another to monitor the total number of messages used.
+    请注意，有 4 个聚合操作可用 - *平均值*、*最小值*、*最大值* 和 *总和*。
 
-1. Under the updated **Chart Title**, in the toolbar, click **Add metric**.
+1. 请花费片刻时间查看你的图表。
 
-    A new metric will appear. Notice that, again, the **SCOPE** and **METRIC NAMESPACE** values are pre-populated and the **METRIC** dropdown is focused and open.
+    请注意，图表标题已更新以体现所选的指标。
 
-1. Under **METRIC**, select **Connected devices (preview)**.
+    你已完成对第一个指标的说明。接下来，你将添加另一个指标来监视连接的设备数量。
 
-1. Under **AGGREGATION**, select **Avg**.
+1. 在图表标题的工具栏上，单击 **“添加指标”**。
 
-    Your screen now shows the minimized metric for Telemetry messages sent, plus the new metric for avg connected devices. Notice that the chart title has updated to reflect both metrics.
+    将会出现一个新指标。请注意， **“范围”** 和 **“指标命名空间”** 值已预先填充。
 
-    > [!NOTE]  To edit the chart title, click the **pencil** to the right of the title. 
+1. 在 **“指标”** 下拉列表中，单击 **“已连接的设备(预览)”**。
 
-1. Under the updated **Chart Title**, in the toolbar, click **Pin to dashboard**. Note that you can choose to pin to the current dashboard or choose another. Select the dashboard you created in the first lab - "AZ-220-RG".
+1. 在 **“聚合”** 下，确保选中 **“平均值”**。
 
-    > [!NOTE] In order to retain the chart you have just created, it **must** be pinned to a dashboard.
+    你的屏幕现在显示发送的遥测消息的最小指标，以及平均连接设备的新指标。请注意，图表标题已更新以反映两个指标。
 
-1. Navigate to the "AZ-220-RG" dashboard and verify the chart is displayed.
+    > **注释**：要编辑图表标题，请单击标题右侧的 **铅笔**。
 
-    > [!NOTE] You can customize the size and position of the chart by using drag and drop operations.
+1. 在工具栏右侧的 **“图表标题”** 下，单击 **“固定到仪表板”**，然后单击 **“固定到当前仪表板”**
 
-Now that we have enable logging and setup a chart to monitor metrics, we will set up an alert.
+    > **注释**： 为了保留刚创建的图表，**必须** 将其固定到仪表板上。
 
+1. 导航到 “AZ-220” 仪表板，并确认已显示该图表。
 
+    > **注释**：你可以使用拖放操作来自定义图表的大小和位置。
 
+现在，你已启用日志记录并设置图表以监控指标，现在是设置警报的好时机。
 
-## Exercise 4: Configure an Alert
+### 练习 3：配置警报
 
-Now let us create an alert. Alerts proactively notify you when important conditions are found in your monitoring data. They allow you to identify and address issues before the users of your system notice them. In our asset tracking scenario, we use sensors to track our assets being transported. Each time a sensor is added in a transportation box, it will auto provision through DPS. We want to have a metric for the warehouse manager of how many boxes were "tagged" and need to count the Device Connected events from IoT Hub.
+警报用于在监控数据中发现重要情况时主动通知你。它们允许你在系统用户注意到之前识别并解决问题。 
 
-In this task we are going to add an alert that will inform the warehouse manager when 5 or more devices have connected.
+在你的资产跟踪方案中，你使用传感器来跟踪要配送给客户的容器。每次在装运容器中添加传感器时，都会通过 DPS 自动配置传感器。 
 
-1. In the Azure Portal, navigate to the IoT Hub we are using for this lab.
+对于即将进行的概念验证演示，你希望创建一个警报，在当前正在传输的容器数量接近容量限制时触发。要触发警报，你将使用 IoT 中心的“已连接设备”事件数量。
 
-1. In the left hand navigation area, under **Monitoring**, click **Alerts**.
+在本练习中，你将添加一个将在连接 5 个或更多设备时触发的警报。
 
-    The empty **Alerts** page is displayed. Notice that the **Subscription**, **Resource group**, **Resource** and **Time range** fields are pre-populated.
+1. 在 Azure 门户窗口中打开“IoT 中心”边栏选项卡。
 
-1. Under **Time range**, select **Past hour**.
+1. 在左侧导航菜单的 **“监控”** 下，单击 **“警报”**。
 
-1. To add a new alert, click **+ New Alert Rule** (while the list is empty, you will see a **New Alert Rule** button in the center of the page - you can click this or the one in the toolbar).
+    将显示空的 **“警报”** 页。请注意，**“订阅”**、**“资源组”**、**“资源”** 和 **“时间范围”** 字段已预先填充。
 
-    The **Create rule** pane is displayed.
+1. 在 **“时间范围”** 下拉列表中，单击 **“过去一个小时”**。
 
-1. At the top of the page, you will see two fields - **RESOURCE** and **HIERARCHY**. Notice they are pre-populated with the IoT Hub. To change the selected resource, you would click **Select**.
+1. 在 **“警报”** 窗格顶部，单击 **“新建警报规则”**
 
-1. Under **Condition** you will see that no conditions have been defined. Click **Add** to add a new condition.
+    此时应显示 **“创建规则”** 边栏选项卡。
 
-    The **Configure signal logic** pane is displayed. You will notice that there is a paginated table of available signals displayed. The fields above the table filter the table to assist in finding the signal types you want.
+1. 花点时间查看 **“创建规则”** 边栏选项卡。
 
-1. Under **Signal type**, you will note that **All** is selected. Click on the dropdown and note that there are 3 available options: *All*, *Metrics* and *Activity Log*. Leave the selection as **All** for now.
+    边栏选项卡顶部有两个字段： **“资源”** 和 **“层次结构”**。请注意，这些字段已预填充 IoT 中心的属性。如果需要更改预先选择的资源，请单击“资源”下的 **“选择”**。
 
-    > [!NOTE] The signal types available for monitoring vary based on the selected target(s). The signal types may be metrics, log search queries or activity logs.
+1. 在 **“条件”** 下，单击 **“添加”**。
 
-1. Under **Monitor service**, you will note that **All** is selected. Click on the dropdown and note that there are 3 available options: *All*, *Platform* and *Activity Log - Administrative*. Leave the selection as **All** for now.
+    此时应显示 **“配置信号逻辑”** 窗格。请注意，显示了可用信号的分页表。表格上方的字段用于筛选表格，以帮助查找所需的信号类型。
 
-    > [!NOTE] The platform service provides metrics on service utiization, where as the activity log tracks administrative activities.
+1. 在 **“信号类型”** 下，确保选中 **“全部”**。
 
-1. in the **Search by signal name** textbox, enter **connected** and this will immediately filter, then select **Connected devices (preview)** from the list below.
+    如果打开“信号类型”下拉列表，则会看到有 3 个可用选项： *“全部”*、*“指标”* 和 *“活动日志”*。
 
-    The pane will update to display a chart similar to that you would create under **Metrics**, displaying the values associated with the selected signal (in this case *Connected devices (preview)*).
+    > **注释**：用于监测的信号类型因所选目标而异。信号类型可以是指标，日志搜索查询或活动日志。
 
-    Beneath the chart is the area that defines the **Alert logic**.
+1. 在 **“监视器服务”** 下，确保选中 **“全部”**。
 
-1. Under **Threshold** there are two possible selections - *Static* and *Dynamic*. You will notice that **Static** is selected and **Dynamic** is unavailable for this signal type.
+    如果打开“监视服务”下拉菜单，你会看到有 3 个可用选项： *“所有”*、*“平台”* 和 *“活动日志 - 管理”*。
 
-    > [!NOTE] As the names suggest, *Static Thresholds* specify a constant expression for the threshold, whereas *Dynamic Thresholds* detection leverages advanced machine learning (ML) to learn metrics' historical behavior, identify patterns and anomalies that indicate possible service issues. You can learn more about *Dynamic Thresholds* [here](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/alerts-dynamic-thresholds).
+    > **注释**： 平台服务提供有关服务利用率的指标，活动日志跟踪管理活动。
 
-    We are going to create a static threshold that raises and alert whenever the *connected devices (preview)* signal is equal to 5 or more.
+1. 在 **“按信号名称搜索”** 文本框中，键入 **“已连接”**
 
-1. Under **Operator**, click the dropdown list and note the available operators. Select **Greater than or equal to**.
+1. 请注意，信号列表会根据你的输入立即进行筛选。
 
-1. Under **Aggregation type**, click the dropdown and note the available options - select **Average**.
+1. 在 **“信号名称”** 下，单击 **“连接的设备(预览)”**。
 
-1. Under **Threshold value**, enter **5**.
+    窗格将更新以显示与你为 **“指标”** 创建的图表类似的图表。图表显示与选定信号相关的值（在本例中为 *已连接设备（预览）*）。
 
-    > [!NOTE] The **Condition preview** refreshes to display the condition in an easier to read format.
+    图表下方是定义 **“警报逻辑”** 的区域。
 
-    Below the **Condition preview** is the **Evaluation based on** area. The values herein determine the historical time period that is aggregated using the **Aggregation type** selected above and how often the condition is evaluated.
+1. 花些时间查看 **“警报逻辑”** 下的选项
 
-1. Under **Aggregation granularity (Period)**, select the dropdown and notice the available periods - select **5 minutes**.
+    注意，**阈值**有两个可能的选择 - *静态* 和 *动态*。另请注意，**静态** 处于选中状态，而 **动态** 不适用于该信号类型。
 
-1. Under **Frequency of evaluation**, select the dropdown and notice the available frequencies, select **Every 1 Minute**.
+    > **注释**：  顾名思义， *静态阈值* 为阈值指定一个常量表达式，而 *动态阈值* 检测利用高级机器学习 (ML) 来学习指标的历史行为，识别指示可能的服务问题的模式和异常。你可以在[此处](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/alerts-dynamic-thresholds)详细了解 *动态阈值*。
 
-    > [!NOTE] As the **Frequency of evaluation** is shorter than **Aggregation granularity (Period)**, this results in a sliding window evaluation. What this means is every minute, the preceding 5 minutes of values will be aggregated (in this case, averaged), and then evaluated against the condition. In a minutes time, again the preceding 5 minutes of data will be aggregated - this will include one minute of new data and four minutes of data that was already evaluated. Thus we have a sliding window that moves forward a minute at a time, but is always including 4 minutes of earlier data.
+    我们将创建一个静态阈值，它会在每次 *“连接的设备数(预览)”* 信号等于或大于 5 时触发警报。
 
-1. To configure the alert condition, click **Done**.
+1. 在 **“运算符”** 下拉菜单中，单击 **“大于或等于”**。
 
-    The **Configure signal logic** pane closes and the **Create rule** pane appears. Notice that the **CONDITION** is now populated and a **Monthly cost in USD** is displayed. At the time of writing, the estimated cost of the alert condition is $0.10.
+    你可能需要记录此字段和其他字段的其他选项。
 
-    Next, we need to configure the action taken when the alert condition is met.
+1. 在 **“聚合类型”** 选项下，确保 **“平均值”** 已选定。
 
-1. Under **ACTIONS**, notice that no action group is selected. There are two options available - **Select action group** and **Create action group**. As we do not have an action group created yet, click **Create action group**.
+1. 在 **“阈值”** 文本框中，输入 **“5”**
 
-    The **Add action group** pane is displayed.
+    > **注释**： **“条件预览”** 向你显示用于刷新显示内容的条件，显示内容会根据你输入的“运算符”、“聚合类型”和“阈值”设置来进行刷新。 **“条件预览”** 下面是 **“评估依据”** 区域。这些值确定使用上面选择的 **“聚合类型”** 聚合的历史时间段，以及评估条件的频率。
 
-    > [!NOTE] An action group is a collection of notification preferences defined by the owner of an Azure subscription. An action group name must be unique within the Resource Group is is associated with. Azure Monitor and Service Health alerts use action groups to notify users that an alert has been triggered. Various alerts may use the same action group or different action groups depending on the user's requirements. You may configure up to 2,000 action groups in a subscription. You can learn more about creating and managing Action Groups [here](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/action-groups).
+1. 在 **“聚合粒度(周期)”** 下，确保选择 **“5 分钟”**。
 
+1. 在 **“评估频率”** 下，确保选择 **“每 1 分钟”**。
 
-1. Next to **Action group name**, enter **AZ-220 Email Action Group**.
+    > **注释**：由于 **计算频率** 要比 **聚合粒度（周期）** 短，这会导致出现滑动窗口计算。这意味着前 5 分钟内每分钟的值都将被聚合（在此情况下，被平均），然后针对条件进行计算。一分钟后，前 5 分钟的数据将再次聚合 - 包括一分钟的新数据和四分钟的已计算数据。因此，滑动窗口每次向前移动一分钟，但始终包含 4 分钟在上一个窗口已计算的数据。
 
-    > [!NOTE] An action group name must be unique within the Resource Group is is associated with.
+1. 若要配置警报条件，请在 **“配置信号逻辑”** 窗格的底部，单击 **“完成”**。
 
-1. Next to **Short name**, enter **AZ220EmailAG**.
+    **“配置信号逻辑”** 窗格关闭，并显示 **“创建规则”** 边栏选项卡。请注意， **“条件”** 现已填充，并且显示 **“每月成本(美元)”**。写入时，警报条件的估计成本为 0.10 美元。
 
-    > [!NOTE] The short name is used in place of a full action group name when notifications are sent using this group and is limited to a max of 12 characters.
+    接下来，你需要配置满足警报条件时采取的操作。
 
-1. Next to **Subscription**, select the subscription you have been using for this lab.
+1. 花点时间查看一下 **“操作组(可选)”** 区域。 
 
-1. Next to **Resource group**, select the resource group you are using for this lab - "AZ-220-RG".
+    请注意，未选择任何操作组。有两种选择 - **添加** 和 **创建**。 
 
-    > [!NOTE] Action Groups are usually shared across a subscription and would likely be centrally managed by the Azure subscription owner. As such they are more likely to be included in a common resource group rather than in a project specific resource group such as "AZ-220-RG". We are using "AZ-220-RG" to make it easier to clean up the resources after the lab.
+    > **注释**：操作组是 Azure 订阅的所有者定义的通知首选项的集合。操作组名称必须是关联的资源组内唯一的。Azure Monitor 和服务运行状况警报使用操作组通知用户已触发警报。根据用户要求，各种警报可使用相同操作组或不同操作组。你可以在一个订阅中最多配置 2,000 个操作组。你可以[在此](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/action-groups)了解有关创建和管理操作组的更多信息。
 
-1. In the next area, **Actions**, you can define a list of actions that will be performed whenever this action group is invoked.
+1. 在 **“操作组(可选)”** 下，单击 **“创建”**。
 
-1. Under **Action name**, enter **AZ220Notifications**.
+    显示 **“添加操作组”** 边栏选项卡。
 
-1. Under **Action Type**, click the dropdown and notice the available options - select **Email/SMS/Push/Voice**.
+1. 在 **“操作组名称”** 下，输入 **AZ-220 电子邮件操作组**
 
-    Immediately, the **Email/SMS/Push/Voice** action details pane is displayed. Notice that you can choose up to 4 methods for delivering the notification. For the purpose of this lab, we'll use **Email** and **SMS**.
+    > **注释**：操作组名称在与其关联的资源组中必须是唯一的。
 
-1. Check **Email** and enter an email you wish to use to receive the alert.
+1. 在 **“简称”** 下，输入 **“AZ220EmailAG”**
 
-1. Check **SMS**, enter your **Country code** and the **Phone number** you wish to receive the SMS alert.
+    > **注释**：当使用此组发送通知时，将使用短名称代替完整的操作组名称，并且最大限制为 12 个字符。
 
-1. Skip **Azure app Push Notifications** and **Voice**.
+1. 在 **“订阅”** 选项下，请确保你在本实验室中使用的订阅已选定。
 
-1. Finally, there is the option to **Enable the common alert schema** - select **Yes**.
+1. 在 **“资源组”** 下拉列表中，单击 **“AZ-220-RG”**。
 
-   > [!NOTE] There are many benefits to using the Common Alert Schema. It standardizes the consumption experience for alert notifications in Azure today. Historically, the three alert types in Azure today (metric, log, and activity log) have had their own email templates, webhook schemas, etc. With the common alert schema, you can now receive alert notifications with a consistent schema. You can learn more about the Common ALert6 Schema [here](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/alerts-common-schema).
+    > **注释**：操作组通常可在整个订阅范围内共享，并且可能由 Azure 订阅所有者集中管理。这样，它们更有可能包含在公共资源组中，而不是项目特定的资源组（例如“AZ-220-RG”）中。我们正在使用“AZ-220-RG”来简化实验室结束后清理资源的过程。
 
-   > **Important:** Given the benefits, you may wonder why the common alert schema is not enabled by default - well, when you select **Yes** you will see a warning **Enabling the common alert schema might break any existing integrations.** Bear this in mind in your own environments.
+    下一个区域 **“操作”** 用于定义将在每次调用此操作组时执行的操作列表。
 
-1. To save the **Email/SMS/Push/Voice** action configuration, click **OK**.
+1. 在 **“操作名称”** 下，输入 **“AZ220Notifications”**
 
-    The **Email/SMS/Push/Voice** pane closes and the list of **Actions** on the **Add action group** pane is updated. Notice that the new action has a link to **Edit details** if changes are required.
+1. 打开 **“操作类型”** 下拉菜单，然后查看可用选项。
 
-    At this point, we could add multiple actions if we needed to launch some business integration via *WebHooks* or an *Azure Function*, however for this lab, this notification is enough.
+1. 在 **“操作类型”** 下拉菜单中，单击 **“电子邮件/短信/推送/语音”**。
 
-1. To create this action group, click **OK**.
+    **“电子邮件/短信/推送/语音”** 边栏选项卡会立即显示此操作类型的操作详细信息。请注意，你最多可以选择 4 种传递通知的方法。
 
-    A few things happen at the same time. First, **Add action group** pane closes and the **Create rule** pane is displayed, with the new Action Group added to the list of **ACTIONS**.
+1. 在 **“电子邮件/短信/推送/语音”** 边栏选项卡上，单击 **“电子邮件”**，然后输入你可以轻松访问的电子邮件地址。 
 
-    Then, in quick succession, you should receive both an SMS notification and an email, both of which inform you that you have been added to the **AZ220EmailAG** action group. In the SMS message, you will note that you can reply to the message to stop receiving future notifications and so on - you can learn more about the options [here](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/alerts-sms-behavior). In the email, you have links that you can click to view the details on action groups and, towards the bottom of the email (in a smaller font) you can see the option to unsubscribe.
+1. 单击 **“短信”**，然后为你希望用于接收短信警报的手机输入 **“国家/地区代码”** 和 **“电话号码”**。
 
-1. Next, we configure the **ALERT DETAILS**.
+1. 跳过 **“Azure 应用推送通知”** 和 **“语音”**。
 
-1. Under **Alert rule name**, enter **Connected Devices Greater or Equal To 5**. The name should be descriptive enough to identify the alert.
+1. 在 **“启用通用警报架构”** 下，单击 **“是”**。
 
-1. Under **Description** you can optionally enter a more detailed description, enter **This alert is raised when the AZ-220-HUB  device connection threshold is greater than or equal to 5.**.
+   > **注释**： 使用通用警报架构好处众多。它将当今 Azure 中警报通知的使用体验标准化。从历史上看，目前 Azure 中的三种警报类型（指标、日志和活动日志）一直都有各自的电子邮件模板、Webhook 架构等。现在，借助通用警报架构，你可以接收架构一致的警报通知。欲进一步了解通用 ALert6 架构，请点击[这里](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/alerts-common-schema)。
+   >
+   > **重要事项：**鉴于通用警报架构有这么多好处，你可能在想为什么不设置为默认启用模式呢 - 嗯，那是因为当选择 **“是”** 时，你会看到一个警告 **“启用通用警报架构可能会破坏任何现有的集成”**。在自己的环境中请记住这点。
 
-1. Under **Severity**, select the severity of the alert. In our scenario, this alert is *informational* and not indicative of any critical failure, therefore select **Sev 3**.
+1. 在 **“电子邮件/短信/推送/语音”** 边栏选项卡底部，单击 **“确定”**，保存操作配置。
 
-    > [!NOTE] Severity options and the associated severity:
-    >* Sev 0 = Critical
-    >* Sev 1 = Error
-    >* Sev 2 = Warning
-    >* Sev 3 = Informational
-    >* Sev 4 = Verbose
+    **“添加操作组”** 边栏选项卡此时应列出你的操作。注意，如果需要更改，新操作有一个指向 **“编辑详细信息”** 的链接。
 
-1. Under **Enable rule upon creation**, ensure **Yes** is selected.
+    此时，如果我们需要通过 *“WebHook”* 或 *“Azure 函数”* 启动一些业务集成，则可以添加多个操作，但对本实验室而言，一个简单的通知已经足够。
 
-    > [!NOTE] It can take up to 10 minutes for a metric alert rule to become active.
+1. 在 **“添加操作组”** 边栏选项卡底部，单击 **“确定”** 创建此操作组。
 
-1. To finally create the rule, click **Create alert rule**.
+    同时会发生一些事情。首先， **“添加操作组”** 边栏选项卡会关闭，你会留在 **“创建规则”** 边栏选项卡，且新的操作组已添加到 **“操作”** 列表。
 
-    The **Create rule** pane is closed and the list of **Alerts** is displayed. The **New alert rule** button that was previously displayed has now been replaced by **Manage alert rules(1)**. As we have yet to trigger any alerts, no alerts are listed here.
+    然后，你将很快收到一则短信通知和一封电子邮件，这两者都会通知你已被添加到 **“AZ220EmailAG”** 操作组。在短信中，你将注意到你可以回复此消息以停止接收今后的通知等（[可在此处](https://docs.microsoft.com/zh-cn/azure/azure-monitor/platform/alerts-sms-behavior)深入了解各种选项）。电子邮件中包含可以单击并查看操作组详细信息的链接，在电子邮件底部（在小字体处），可以看到取消订阅选项。
 
-Now that we have create our alert, we should configure the environment we need for the device siumulation we will use to trigger the alert.
+    接下来，你将配置 **警报详细信息**。
 
+1. 在 **“创建规则”** 边栏选项卡的 **“警报规则名称”** 选项下，输入 **“已连接设备数大于或等于 5”**
 
+    名称应具有充分的描述性，以便能够识别警报。
 
-## Exercise 5: Simulating the Sensors
+1. 在 **“描述”** 下，输入 **“当连接到 AZ-220-HUB-{YOUR-ID} 中心的设备数大于或等于 5 时，触发此警报”**。
 
-As part of the asset-tracking scenario, we need to have devices that simulate the tags that will be used to track the assets during transportation. As each device is activated, it should use automatic device provisioning to connect to the Iot solution and start sending telemetry. In order to automatically connect, each device will need its own X509 certificate that is part of a chain to the root certificate used to create a group enrollment.
+    描述字段是可选的，但建议填写。
 
-In this task, we will verify the existing environment, perform any necessary setup, generate 10 device certificates, and configure a console application that will simulate the 10 devices.
+1. 在 **“严重性”**下，选择 **“严重性 3”**。
 
-## Verify Environment
+    在我们的情形下，此警报是*信息性的*，并不表示有任何严重故障，因此 **“严重性 3”** 是正确的选择。
 
-In **Lab 6-Automatic Enrollment of Devices in DPS** you configured DPS to use X509 resources. If you still have that configuration available, that will shortcut a few steps. However, if you did not complete the lab, make sure you check every step below.
+    > **注释**：  严重性级别选项为：严重性 0 - 严重性 4。你的企业应该为各级别建立明确的定义。 
+    >
+    > 例如，Contoso 可能将这些级别定义如下：
+    >* Sev 0 = 严重
+    >* 严重性 1 = 错误
+    >* 严重性 2 = 警告
+    >* 严重性 3 = 信息
+    >* 严重性 4 = 详细信息
 
-### Verify DPS Configuration
+1. 在 **“创建时启用规则”** 下，确保选中了 **“是”**。
 
-1. In your browser, navigate to the [Azure Portal](https://portal.azure.com/) and login to your subscription.
+    > **注释**： 指标警报规则最多可能需要 10 分钟才能生效。
 
-1. Navigate to the "AZ-220-RG" resource group and look for a **Device Provisioning Service** named **AZ-220-DPS-{YOUR INITIALS and DATE}**.
+1. 在边栏选项卡底部，单击 **“创建预警规则”**。
 
-    > [!NOTE] If the DPS does not exist, return to the **Setup Resources** task earlier in this lab.
+    现在应显示 IoT 中心的**“警报”** 窗格。中间的消息应该会告诉你没有警报，你应该会看到在该状态消息下面添加了一个 **“管理警报规则(1)”** 按钮。
 
-1. To review the configuration of the DPS service, click  **AZ-220-DPS-{YOUR INITIALS and DATE}**.
+现在是时候配置触发警报所需的环境了。
 
-1. To verify the certificate configuration, in the left hand navigation area, under **Settings**, click **Certificates**.
+### 练习 4：模拟传感器
 
-    > [!NOTE] If the certificates list is empty, jump to the **Verify OpenSSL** section
+要模拟 Contoso 的资产跟踪系统，你需要模拟放置在装运集装箱中的 IoT 设备。激活每个设备后，应使用自动设备预配连接到 IoT 解决方案并开始发送遥测。为了自动连接，每个设备将需要自己的 X.509 证书，该证书是用于创建组注册的根证书的链的一部分。
 
-1. Examine the certificate entry and ensure the **Status** for the certificate in the **Certificates** pane is displayed as **Verified**.
+在本练习中，你将验证现有环境，执行必要的设置，生成 10 个设备证书以及配置将模拟 10 个设备的控制台应用程序。
 
-    > [!NOTE] If the certificate status is **Unverified**, click the certificate to view the details, then click **Delete**. Enter the **Certificate Name** to confirm the deletion and click **OK**. Jump to the **Verify OpenSSL** section.
+> **注释**：在本课程的实验室 6 中（**实验室 6 - DPS 中的设备自动注册**），你已配置 DPS 以使用 X.509 资源。如果你仍然可以使用该配置，则可以跳过以下一项或多项任务。
 
-1. To verify the group enrollment, in the left navigation area, under **Settings** select **Manage enrollments**.
+#### 任务 1：验证 DPS 配置
 
-1. In the **Manage enrollments** pane, click on the **Enrollment Groups** link to view the list of enrollment groups in DPS.
+1. 在浏览器中，导航到 [“Azure 门户”](https://portal.azure.com/)，并登录你的订阅。
 
-    > [!NOTE] Does the **simulated-devices** enrollment group **exist**? If so jump to the **Generate Device Certificates** in the next task.
+1. 在仪表板上，检查“AZ-220-RG”资源组磁贴，以了解 **AZ-220-DPS-{YOUR-ID}** 设备预配服务。
 
-1. If the  **simulated-devices** enrollment group does not exist, continue with the **Verify OpenSSL** section below.
+    > **注释**： 如果 **AZ-220-DPS-{YOUR-ID}** 不存在，请返回本实验室中的练习 1 并运行设置脚本。
 
-### Verify OpenSSL
+1. 在资源组磁贴上，单击 **“AZ-220-DPS-{YOUR-ID}”**。
 
-In the following steps you will verify that OpenSSL tools installed in an earlier lab are still available.
+1. 在左侧导航菜单中，在 **“设置”** 下单击 **“证书”**。
 
-1. In your browser, navigate to the [Azure Shell](https://shell.azure.com/) and login to your subscription.
+1. 这会打开 **“证书”** 窗格，然后请按照以下说明操作：
 
-1. At the shell prompt, enter the following command:
+    * 如果证书列表为空，请直接转到本练习的任务 2 - **任务 2： 验证 OpenSSL**。
+    * 如果已列出名为 **root-ca-cert** 的证书，请继续下一步。 
+
+1. 对于列出的证书，请检查 **“状态”** 下面的值，并按照以下说明进行操作： 
+
+    * 如果证书状态为 **“未验证”**：
+        * 单击证书以查看详细信息，然后单击 **“删除”**。 
+        * 输入**“证书名称”** 确认删除，然后单击 **“确定”**。 
+        * 直接前往本练习的任务 2 - **任务 2：验证 OpenSSL**。
+    * 如果证书状态为 **“已验证”**，请继续进行下一步。
+
+1. 在左侧导航菜单中，在**“设置”** 下，单击 **“管理注册”**
+
+1. 在 **“管理注册”** 窗格，单击 **注册组**，以查看 DPS 中的注册组列表。
+
+1. 如果列出了 **simulated-devices** 注册组，请直接进入下一个练习 - **练习 5：模拟设备**
+
+1. 如果 **simulated-devices** 注册组不存在，请按照以下说明进行操作：
+
+    * 如果你有名为 **root-ca-cert** 的经验证的证书，请直接转到本练习的任务 5 - **任务 5：创建注册组**。
+    * 如果你在上面没有找到已验证证书，请继续执行任务 2 - **任务 2：验证 OpenSSL**。
+
+#### 任务 2：验证 OpenSSL
+
+在以下步骤中，你将验证在上一个实验室中安装的 OpenSSL 工具仍然可用。
+
+1. 在浏览器中，导航到 [“Azure Shell”](https://shell.azure.com/)并登录到你的订阅。
+
+1. 在 shell 提示符下，输入以下命令：
 
     ```bash
     cd ~/certificates
     ```
 
-    If you see an error that states **No such file or directory** then jump down to the **Install OpenSSL Tools** section below.
+    如果你看到一个错误，指出**无此文件或目录**，请直接前往本练习的任务 3 - **任务 3：安装 OpenSSL 工具**。
 
-1. At the shell prompt, enter the following command:
+1. 在 Cloud Shell 命令提示符下，输入以下命令：
 
     ```bash
-    cd ~/certs
+    cd certs
     ```
 
-    If you see an error that states **No such file or directory** then jump down to the **Generate and Configure x.509 CA Certificates using OpenSSL** section below.
+    如果你看到一个错误，指出 **“无此文件或目录”**，请直接转到本练习的任务 4 - **任务 4：使用 OpenSSL 生成和配置 x.509 CA 证书**。
 
-1. Jump down to the **Generate Device Certificates** in the next task.
+1. 如果 **certs** 文件夹可用，请直接转到本练习的任务 5 - **任务 5：创建注册组**。
 
-## Install OpenSSL Tools
+#### 任务 3：安装 OpenSSL 工具
 
-1. In the cloud shell, enter the following commands:
+1. 在 Cloud Shell 中，输入以下命令：
 
     ```bash
     mkdir ~/certificates
 
-    # navigate to certificates directory
+    ＃导航到证书目录
     cd ~/certificates
 
-    # download helper script files
+    # 下载帮助程序脚本文件
     curl https://raw.githubusercontent.com/Azure/azure-iot-sdk-c/master/tools/CACertificates/certGen.sh --output certGen.sh
     curl https://raw.githubusercontent.com/Azure/azure-iot-sdk-c/master/tools/CACertificates/openssl_device_intermediate_ca.cnf --output openssl_device_intermediate_ca.cnf
     curl https://raw.githubusercontent.com/Azure/azure-iot-sdk-c/master/tools/CACertificates/openssl_root_ca.cnf --output openssl_root_ca.cnf
 
-    # update script permissions so user can read, write, and execute it
+    ＃更新脚本权限，以便用户可以读取、写入和执行它
     chmod 700 certGen.sh
     ```
 
-1. Continue to the **Generate and Configure x.509 CA Certificates using OpenSSL** section below.
+### 任务 4：使用 OpenSSL 生成和配置 x.509 CA 证书
 
-### Generate and Configure x.509 CA Certificates using OpenSSL
+所需的第一批 X.509 证书是 CA 和中间证书。可以通过传递 `create_root_and_intermediate` 选项并使用 `certGen.sh` 帮助程序脚本来生成它们。
 
-The first x.509 certificates needed are CA and intermediate certificates. These can be generated using the `certGen.sh` helper script by passing the `create_root_and_intermediate` option.
+1. 在 Cloud Shell 中，确保你位于 `~/certificates` 目录中。 
 
-1. In the cloud shell, run the following command within the `~/certificates` directory of the **Azure Cloud Shell** to generate the CA and intermediate certificates:
+1. 在 Cloud Shell 命令提示符处，要生成 CA 和中间证书，请输入以下命令：
 
     ```sh
     ./certGen.sh create_root_and_intermediate
     ```
 
-1. The previous command generated a CA Root Certificate named `azure-iot-test-only.root.ca.cert.pem` is located within the `./certs` directory.
+    该命令会生成一个名为 `azure-iot-test-only.root.ca.cert.pem` 的 CA 根证书，并将其放置在 `./certs` 目录中。
 
-    Run the following command within the **Azure Cloud Shell** to download this certificate to your local machine so it can be uploaded to DPS.
+1. 在 Cloud Shell 命令提示符下，输入以下命令以将 `azure-iot-test-only.root.ca.cert.pem` 证书下载到本地计算机（以便可以将其上传到 DPS）：
 
     ```sh
     download ~/certificates/certs/azure-iot-test-only.root.ca.cert.pem
     ```
 
-1. Navigate to the **Device Provisioning Service** (DPS) named `AZ-220-DPS-{YOUR-INITIALS-AND-CURRENT-DATE}` within the Azure portal.
+1. 在 Azure 门户中，打开 **AZ-220-DPS-{YOUR-ID}** 设备预配服务。
 
-1. On the **Device Provisioning Service** blade, click the **Certificates** link under the **Settings** section.
+1. 在 **“设备预配服务”** 边栏选项卡上，在左侧导航菜单的 **“设置”** 选项下，单击 **“证书”**。
 
-1. On the **Certificates** pane, click the **Add** button at the top to start process of uploading the x.509 CA Certificate to the DPS service.
+1. 在边栏选项卡顶部的 **“证书”** 窗格上，单击 **“添加”**。
 
-    > [!NOTE] If see an existing certificate, select and delete it.
+    > **注释**： 如果看到存在现有证书，请选择并删除它。
 
-1. On the **Add Certificate** pane, select the x.509 CA Certificate file in the **Certificate .pem or .cer file** upload field. This is the `azure-iot-test-only.root.ca.cert.pem` CA Certificate that was just downloaded.
+1. 在 **“添加证书”** 窗格上，在 **“证书 .pem 或 .cer 文件”** 上传字段中选择 x.509 CA 证书文件。  
 
-1. Enter a logical name for the _Root CA Certificate_ into the **Certificate Name** field. For example, `root-ca-cert`
+    这是刚刚下载的 `azure-iot-test-only.root.ca.cert.pem` CA 证书。
 
-    This name could be the same as the name of the certificate file, or something different. This is a logical name that has no correlation to the _Common Name_ within the x.509 CA Certificate.
+1. 在 **“证书名称”** 字段中，输入 **“root-ca-cert”**
 
-1. Click **Save**.
+    该名称可以与证书文件的名称相同，也可以不同。这是一个逻辑名称，与 x.509 CA 证书中的_公用名_没有关联。
 
-1. Once the x.509 CA Certificate has been uploaded, the **Certificates** pane will display the certificate with the **Status** of **Unverified**. Before this CA Certificate can be used to authenticate devices to DPS, you will need to verify **Proof of Possession** of the certificate.
+1. 单击 **“保存”**。
 
-1. To start the process of verifying **Proof of Possession** of the certificate, click on the **CA Certificate** that was just uploaded to open the **Certificate Details** pane for it.
+    上传 x.509 CA 证书后，**“证书”** 窗格将显示 **“状态”** 为 **“未验证”** 的证书。在使用此 CA 证书对 DPS 的设备进行身份验证之前，你需要验证证书的 **“所有权证明”**。
 
-1. On the **Certificate Details** pane, click on the **Generate Verification Code** button.
+1. 要开始验证证书的“所有权证明”，请单击 **“root-ca-cert”**。
 
-1. Copy the newly generated **Verification Code** that is displayed above the _Generate_ button.
+1. 在 **“证书详细信息”** 窗格中，单击 **“生成验证码”**。
 
-    > [!NOTE] You will need to leave the **Certificate Details** pane **Open** while you generate the Verification Certificate. If you close the pane, you will invalidate the Verification Code and will need to generate a new one.
+1. 复制新生成 **的验证码** 值。
 
-1. Open the **Azure Cloud Shell**, if it's not still open from earlier, and navigate to the `~/certificates` directory.
+    > **注释**： 生成验证证书时，你需要将 **“证书详细信息”** 窗格保持为 **“打开”** 状态。如果你关闭窗格，验证码就会失效，需要生成新的验证码。
 
-1. **Proof of Possession** of the CA Certificate is provided to DPS by uploading a certificate generated from the CA Certificate with the **Validate Code** that was just generated within DPS. This is how you provide proof that you actually own the CA Certificate.
+1. 如果仍然无法在之前的基础上打开，则打开 **Azure Cloud Shell**，并导航到 `~/certificates` 目录。
 
-    Run the following command, passing in the **Verification Code**, to create the **Verification Certificate**:
+    CA **证书的所有权证明** 是通过上传从 CA 证书生成的证书（其中包含刚在 DPS **中生成的验证代码**）提供给 DPS 的。这是如何证明你实际拥有 CA 证书的方法。
+
+1. 在 Cloud Shell 命令提示符处，要创建 **验证证书** （提供 **验证码**），请输入以下命令：
 
     ```sh
     ./certGen.sh create_verification_certificate <verification-code>
     ```
 
-    Be sure to replace the `<verification-code>` placeholder with the **Verification Code** generated by the Azure portal.
+    请务必将 `<verification-code>` 占位符替换为由 Azure 门户生成的 **验证码**。
 
-    For example, the command run will look similar to the following:
+    例如，命令运行会类似于：
 
     ```sh
     ./certGen.sh create_verification_certificate 49C900C30C78D916C46AE9D9C124E9CFFD5FCE124696FAEA
     ```
 
-1. The previous command generated a **Verification Certificate** that is chained to the CA Certificate with the Verification Code. The generated Verification Certificate named `verification-code.cert.pem` is located within the `./certs` directory of the Azure Cloud Shell.
+    该命令会生成一个通过验证码链接到 CA 证书的 **验证证书**。生成的名为 `verification-code.cert.pem` 的验证证书位于 Azure Cloud Shell 的 `./certs` 目录中。
 
-    Run the following command within the **Azure Cloud Shell** to download this **Verification Certificate** to your local machine so it can be uploaded to DPS.
+1. 在 Cloud Shell 命令提示符下，要将此 **验证证书** 下载到本地计算机（以便将其上传到 DPS），请输入以下命令：
 
     ```sh
-    download ~/certificates/certs/verification-code.cert.pem
+    下载 ~/certificates/certs/verification-code.cert.pem
     ```
 
-1. Go back to the **Certificate Details** pane for the **CA Certificate** within DPS.
+1. 在 Azure 门户中，导航回 **“CA 证书”** 的 **“证书详细信息”** 窗格。
 
-1. Select the newly created, and downloaded, **Verification Certificate** file, named `verification-code.cert.pem`, within the **Verification Certificate .pem or .cer file** field.
+1. 在 **“验证证书 .pem 或 .cer 文件”** 字段，单击 **“verification-code.cert.pem”**。
 
-1. Click **Verify**.
+    这是你新创建并下载的 **验证证书** 文件。
 
-1. With the **Proof of Possession** completed for the CA Certificate, notice the **Status** for the certificate in the **Certificates** pane is now displayed as **Verified**.
+1. 在 **“证书详细信息”** 窗格中，单击 **“验证”**。
 
-1. On the Device Provisioning Service settings pane on the left side, click **Manage enrollments**.
+    完成 CA 证书的 **所有权证明** 后，请注意，**“证书”** 窗格中证书的 **“状态”** 现在显示为 **“已验证”**。
 
-1. At the top of the blade, click **Add enrollment group**.
+#### 任务 5：创建一个注册组
 
-1. On the **Add Enrollment Group** blade, enter "**simulated-devices**" in the **Group name** field for the name of the enrollment group.
+1. 在 Azure 门户中，确保 **“AZ-220-DPS-{YOUR-ID}”** 设备预配服务边栏选项卡处于打开状态。
 
-1. Ensure that the **Attestation Type** is set to **Certificate**.
+1. 在左侧导航菜单的 **“设置”** 下，单击 **“管理注册”**。
 
-1. Set the **Certificate Type** field to **CA Certificate**.
+    不应列出任何注册组。
+ 
+1. 在边栏选项卡顶部，单击 **“添加注册组”**。
 
-1. In the **Primary Certificate** dropdown, select the **CA Certificate** that was uploaded to DPS previously.
+1. 在 **“添加注册组”** 边栏选项卡中，在 **“组名称”** 字段中输入 **“simulated-devices”**
 
-1. Notice the **Select the IoT hubs this group can be assigned to** dropdown has the **AZ-220-HUB-{YOUR-ID}** IoT Hub selected. This will ensure when the device is provisioned, it gets added to this IoT Hub.
+1. 确保将 **“认证类型”** 设置为 **“证书”**。
 
-1. In the Initial Device Twin State field, modify the `properties.desired` JSON object to include a property named `telemetryDelay` with the value of `"1"`. This will be used by the Device to set the time delay for reading sensor telemetry and sending events to IoT Hub.
+1. 确保将 **“证书类型”** 字段设置为 **“CA 证书”**。
 
-    The final JSON will be like the following:
+1. 在 **“初级证书”** 下拉列表中，单击 **“root-ca-cert”**。
+
+    验证 **“选择可以分配给该组的 IoT 中心”** 下拉菜单中是否包括你的 **“AZ-220-HUB-_{YOUR-ID}_”** IoT 中心。这将确保在预配设备时将其添加到此 IoT 中心。
+
+1. 在 Initial Device Twin State 字段中，修改 `properties.desired` JSON 对象以包括名为 `telemetryDelay` 的属性，其值为 `"1"`。设备将使用它设置读取传感器遥测并向 IoT 中心发送事件的时间延迟。
+
+    最终的 JSON 如下所示：
 
     ```js
     {
@@ -581,66 +653,80 @@ The first x.509 certificates needed are CA and intermediate certificates. These 
     }
     ```
 
-1. Click **Save**
+1. 在边栏选项卡顶部，单击 **“保存”**。
 
-Now that the environment is setup, it's time to generate our device certificates.
+现在已经设置好环境，是时候生成我们的设备证书了。
 
+### 练习 5：模拟设备
 
+在本练习中，你将从根证书生成 X.509 证书。然后，你将在控制台应用程序中使用这些证书，该应用程序将模拟连接到 DPS 并将遥测发送到 IoT 中心的 10 个设备。
 
+#### 任务 1：生成设备证书
 
+现在，你将生成并下载 10 个设备证书。
 
-## Exercise 6: Simulate Devices
+1. 打开 [“Azure Cloud Shell”](https://shell.azure.com/)并使用本课程使用的 Azure 订阅登录。
 
-In this task we will be generating X509 certificates from the root certifcate. We will then use these certificates in a console application that will simulate 10 devices connecting to DPS and sending telemetry to an IoT Hub.
+1. 在 Cloud Shell 命令提示符下，要创建名为 **“monitoring”** 的目录并移至该目录中，请输入以下命令：
 
-## Generate Device Certificates
+    ```bash
+    mkdir monitoring
+    cd monitoring
+    ```
 
-We will now generate and download 10 device certificates.
-
-1. Open the **Azure Cloud Shell**, if it's not still open from earlier, and navigate to the `~/monitoring` directory.
-
-1. To create an empty file in which we will copy the device generation script, enter the following commands:
+1. 若要创建将在其中复制设备生成脚本的空文件，请输入以下命令：
 
     ```bash
     touch gen-dev-certs.sh
     chmod +x gen-dev-certs.sh
     ```
 
-1. To edit the contents of the **gen-dev-certs.sh** file, use the **{ }** icon in Azure Cloud Shell to open the **Cloud Editor**.
+1. 在 Cloud Shell 工具栏上，单击 **“打开编辑器”**。
 
-    To open the **gen-dev-certs.sh** file, you will have to expand the **monitoring** node in the **Files** list to locate it.
+    用来打开 Cloud Shell 编辑器的按钮是 **“{ }”** 图标，即右数第二个。
 
-1. Paste the following code into the cloud editor:
+1. 在 **“文件”** 选项下，要编辑 “gen-dev-certs.sh” 文件的内容，请单击 **“监视”**，然后单击 **“gen-dev-certs.sh”** 
+
+    **gen-dev-certs.sh** 文件当前为空。
+
+1. 将以下代码粘贴到云编辑器中。
 
     ```bash
     #!/bin/bash
 
-    # Generate 10 device certificates 
-    # Rename for each device
-    # download from the Cloud CLI
+    ＃生成 10 个设备证书
+    ＃为每个设备重命名
+    ＃从 Cloud CLI 下载
     pushd ~/certificates
     for i in {1..10}
     do
         chmod +w ./certs/new-device.cert.pem
         ./certGen.sh create_device_certificate asset-track$i
-        sleep 5
-        cp ./certs/new-device.cert.pfx ./certs/new-asset-track$i.cert.pfx 
-        download ./certs/new-asset-track$i.cert.pfx 
+        睡眠 5 秒
+        cp ./certs/new-device.cert.pfx ./certs/new-asset-track$i.cert.pfx
+        download ./certs/new-asset-track$i.cert.pfx
     done
     popd
     ```
 
-    This script will create and download 10 device certificates.
+    该脚本将创建并下载 10 个设备证书。
 
-1. To save the edited **gen-dev-certs.sh** file, press **CTRL-Q**. If prompted to save you changes before closing the editor, click **Save**.
+1. 要保存已编辑的 **“gen-dev-certs.sh”** 文件，请按 **CTRL-Q**。 
 
-1. To run the **gen-dev-certs.sh** script, run the following:
+    如果在关闭编辑器之前提示保存更改，请单击 **“保存”**。
+
+1. 在 Cloud Shell 命令提示符处，要运行 **“gen-dev-certs.sh”** 脚本，输入以下命令：
 
     ```bash
     ./gen-dev-certs.sh
     ```
 
-    While the script runs, you will see the output from the certificate generator and then the browser should automatically download each certificate in turn. Once it completes, you will have 10 certificates available in your browser download location:
+    脚本运行时，你将看到证书生成器的输出，然后浏览器将依次自动下载各个证书。 
+
+    > **注释**：如果浏览器询问要对文件执行什么操作，请为每个文件单击 **“保存”**。
+
+
+    完成后，你的浏览器下载位置将提供 10 个证书：
 
     * new-asset-track1.cert.pfx
     * new-asset-track2.cert.pfx
@@ -653,196 +739,226 @@ We will now generate and download 10 device certificates.
     * new-asset-track9.cert.pfx
     * new-asset-track10.cert.pfx
 
-With these certificates available, you are ready to configure the device simulator.
+获取这些证书后，即可开始配置设备模拟器。
 
-## Add Certificates to Simulator
+#### 任务 2：将证书添加到模拟器
 
-1. Copy the downloaded **x.509 Device Certificate** files to the `/LabFiles` directory; within the root directory along-side the `Program.cs` file. The **Simulated Devices** project will need to access this certificate file when authenticating to the Device Provisioning Service.
+1. 将所下载的 **“X.509 设备证书”** 文件复制到实验室 17 **“Starter”** 文件夹。
 
-    After copied, the certificate files will be located in the following locations:
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
+
+    * Allfiles
+      * 实验室
+          * 17 - 如何管理 Azure IoT 中心
+            * Starter
+
+    实验室 17 的 Starter 文件夹包含 SimulatedDevice.csproj 和 Program.cs 文件。在向设备预配服务进行身份验证时，项目将需要访问此证书文件。这些文件需要位于项目文件夹的根目录下：
+
+    复制后，证书文件将位于以下位置：
 
     ```text
-    /LabFiles/new-asset-track1.cert.pfx
-    /LabFiles/new-asset-track2.cert.pfx
-    /LabFiles/new-asset-track3.cert.pfx
-    /LabFiles/new-asset-track4.cert.pfx
-    /LabFiles/new-asset-track5.cert.pfx
-    /LabFiles/new-asset-track6.cert.pfx
-    /LabFiles/new-asset-track7.cert.pfx
-    /LabFiles/new-asset-track8.cert.pfx
-    /LabFiles/new-asset-track9.cert.pfx
-    /LabFiles/new-asset-track10.cert.pfx
+    /Starter/new-asset-track1.cert.pfx
+    /Starter/new-asset-track2.cert.pfx
+    /Starter/new-asset-track3.cert.pfx
+    /Starter/new-asset-track4.cert.pfx
+    /Starter/new-asset-track5.cert.pfx
+    /Starter/new-asset-track6.cert.pfx
+    /Starter/new-asset-track7.cert.pfx
+    /Starter/new-asset-track8.cert.pfx
+    /Starter/new-asset-track9.cert.pfx
+    /Starter/new-asset-track10.cert.pfx
     ```
 
-1. Using **Visual Studio Code**, open the `/LabFiles` folder.
+1. 打开 Visual Studio Code。
 
-1. Open the `Program.cs` file.
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**。
 
-1. Locate the `GlobalDeviceEndpoint` variable, and notice it's value is set to `global.azure-devices-provisioning.net`. This is the **Global Device Endpoint** for the Azure Device Provisioning Service (DPS) within the Public Azure Cloud. All devices connecting to Azure DPS will be configured with this Global Device Endpoint DNS name.
+1. 在 **“打开文件夹”** 对话框中，导航到实验室 17 的“Starter”文件夹，单击 **“Starter”**，然后单击 **“选择文件夹”**。
+
+    > **注释**：如果 Visual Studio Code 建议加载资产或执行还原，请遵循建议。
+ 
+1. 在 **“资源管理器”** 窗格中，请单击 “Program.cs” 打开 **“Program.cs”** 文件。
+
+    你还会看到列出的证书文件。
+
+1. 在代码编辑器中，找到 `GlobalDeviceEndpoint` 变量。
+
+    注意，其值设为 `global.azure-devices-provisioning.net`。这是公共 Azure 云中 Azure 设备预配服务 (DPS) 的 **“全局设备终结点”**。连接到 Azure DPS 的所有设备都将使用此全局设备终结点 DNS 名称进行配置。
 
     ```csharp
     private const string GlobalDeviceEndpoint = "global.azure-devices-provisioning.net";
     ```
 
-1. Locate the `dpsIdScope` variable, and replace the value with the **ID Scope** of the Device Provisioning Service.
+1. 找到 `dpsIdScope` 变量。
 
-   ```csharp
-   private static string dpsIdScope = "<DPS-ID-Scope>";
-   ```
-
-   We need to replace the `<DPS-ID-Scope>` value with the actual value.
-
-1. Return to the Azure cloud shell and enter the following command:
-
-    ```bash
-    az iot dps show --name AZ-220-DPS-{YOUR-INITIALS-AND-CURRENT-DATE} --query properties.idScope
+    ```csharp
+    private static string dpsIdScope = "<DPS-ID-Scope>";
     ```
 
-    > [!NOTE] Ensure you use the name of your DPS instance above.
+    你需要将 `<DPS-ID-Scope>` 占位符值替换为实际值。
 
-    Copy the output of the command and replace the `<DPS-ID-Scope>` value in Visual Studio code. It should look similar to:
+1. 返回到显示包含 Azure Cloud Shell 的浏览器窗口。
+
+1. 在 Cloud Shell 命令提示符下，请输入以下命令显示 DPS 服务的 ID 范围：
+
+    ```bash
+    az iot dps show --name AZ-220-DPS-{YOUR-ID} --query properties.idScope
+    ```
+
+    > **注释**：请务必将 {YOUR-ID} 替换为你在本课程开始时创建的 ID
+
+1. 复制该命令的输出
+
+1. 返回 Visual Studio Code。
+
+1. 将 `<DPS-ID-Scope>` 值替换为从 Azure Cloud Shell 复制的值。
 
    ```csharp
    private static string dpsIdScope = "0ne000A6D9B";
    ```
 
-This app is very similar to the app used in the earlier lab **L06-Automatic Enrollment of Devices in DPS**. The primary difference is that instead of just enrolling a single device simulator and then sending telemetry, it instead enrolls 10 devices, one every 30 seconds. Each simulated device will then send telemetry. This should then cause our alert to be raised and log monitoring data to storage.
+该应用与之前在实验室 **L06-DPS 设备的自动注册** 中使用的应用非常相似。主要区别在于，它并不仅仅是注册一个设备模拟器然后发送遥测，而是注册 10 个设备，每 30 秒注册一个。然后，每个模拟设备将发送遥测。这将触发警报，并将监视数据记录到存储中。
 
-## Run the Simulator
+#### 任务 3：运行模拟器
 
-1. To run the app, in Visual Studio Code, open a terminal, and enter the following command:
+1. 在 Visual Studio Code 中，单击 **“终端”** 菜单上的 **“新建终端”**。
+
+1. 在终端命令提示符下，请输入以下命令运行该应用：
 
     ```bash
     dotnet run
     ```
 
-    You should see output that shows the first device being connected via DPS and then telemetry being sent. Every 30 seconds thereafter, and additional device will be connected and commence sending telemetry until all 10 devices are connected and sending telemetry.
+    你应该会看到显示第一个设备正通过 DPS 连接，然后发送遥测的输出。此后每隔 30 秒，将连接其他设备并开始发送遥测，直到所有 10 个设备均已连接并发送遥测。
 
-1. Return to the DPS group enrollment in the Azure Portal.
+1. 返回到 Azure 门户中的 DPS 组注册。
 
-1. In the **simulated-devices** enrollment group, to view the connected devices, click **Registration Records**.
+1. 在 **“模拟设备”** 注册组中，要查看连接的设备，请单击 **“注册记录”**。
 
-    You should see a list of the devices that have connected. You can hit **Refresh** to update the list.
+    你应该会看到已连接设备的列表。你可以点击 **“刷新”** 以更新列表。
 
-    Now that we have the devices connected and sending telemetry, we await the triggering of the alert once we have 5 or more devices connected for 5 mins. You should receive and SMS message that looks similar to:
+    现在，你已连接设备并发送遥测，一旦连接 5 个或更多设备的时间长达 5 分钟，就可以等待警报触发。你应该会收到一条类似于以下内容的短信：
 
     ```text
     AZ220EmailAG:Fired:Sev3 Azure Monitor Alert Connected Devices Greater or Equal to 5 on <your IoT Hub>
     ```
 
-    The email will look similar to:
+1. 收到警报后，你就可以退出应用程序。
 
-    ![Email Alert](../../Linked_Image_Files/M99-L17-04-email-alert.png)
+    你可以在 Visual Studio Code 终端中按 **“CTRL+C”**，或者关闭 Visual Studio Code。
 
+    > **注释**：  设备断开连接后，你将收到消息，告知警报已解决。
 
-1. Once the alerts have arrived, you can exit the application by either hitting **CTRL+C** in the Visual Studio Code terminal, or by closing Visual Studio Code.
+现在应该检查存储帐户，并查看 Azure Monitor 是否已记录任何内容。
 
-    > [!NOTE] When the devices are disconnected, you will receive messages informing you the alert has been resolved.
+### 练习 6：查看指标、警报和存档
 
-Now, let's check the storage account to see if anything has been logged by Azure Monitor.
+在本练习中，你将检查之前在本实验室中配置的一些报告和日志记录资源，并查看在过去的短时间内记录的事件数据。
 
-## Exercise 7: Review Metrics, Alerts and Archive
+#### 任务 1：在门户中查看指标
 
-## See the Metrics in the Portal
+1. 在 Azure 门户中，单击图表标题，以打开固定到仪表板的“指标”图表。
 
-1. In the Azure Portal, open the Metrics chart you pinned to the dashboard by clicking on the chart title.
+    图表将打开并在页面上显示。
 
-    The chart will open and fill the page.
+1. 将时间值更改为 **“最近 30 分钟”**。
 
-1. Change the time values to the **Last 30 minutes**.
+    请注意，你可以看到 *“已发送的遥测消息”* 和 *已连接设备（预览）**值，最新数字位于图表底部，将鼠标指针悬停在图表上即可查看特定时间点的值。
 
-    Notice that you can see *Telemetry messages sent* and *Connected devices (preview)** values, with the most recent numbers at the bottom of the chart - move you mouse over the chart to see values a specific points in time.
+#### 任务 2：查看警报
 
-    ![metrics chart](../../Linked_Image_Files/M99-L17-05-metrics-chart.png)
+若要使用 Azure 门户查看警报，请完成以下步骤。
 
-## See the Alerts
+1. 在 Azure 门户中，导航回你的仪表板。
 
-To use the Azure Portal to review alerts, complete the following steps.
+1. 在 Azure 门户工具栏的搜索框中，键入 **“monitor”**
 
-1. In the Azure Portal, in the search box at the top of the screen, enter **Monitor** and the select **Monitor** from the list, under **Service**.
+1. 在搜索结果窗格的 **“服务”** 下，单击 **“监控器”**。
 
-    The **Monitor - Overview** page is displayed. This is the overview for all of the monitoring activities for the current subscription.
+    此时将显示 **“监控器 - 概述”** 页面。这是当前订阅的所有监控活动的概述。
 
-1. In the left hand navigation, select **Alerts**.
+1. 在左侧导航菜单中的列表顶部附近，单击 **“警报”**。
 
-    This alerts view shows all alerts for all subscriptions. Let's filter this to the IoT Hub.
+    此警报视图显示所有订阅的所有警报。让我们将此过滤到 IoT 中心。
 
-1. At the top of the page, under **Subscription**, select the subscription you are using.
+1. 在边栏选项卡顶部附近的 **“订阅”** 下，选择用于该课程的订阅。
 
-1. Under **Resource group**, select "AZ-220-RG".
+1. 在 **“资源组”** 下拉列表中，单击 **“AZ-220-RG”**。
 
-1. Under **Resource**, select **AZ-220-HUB-{YOUR-INITIALS-AND-CURRENT-DATE}**.
+1. 在 **“资源”** 下拉列表中，单击 **“AZ-220-HUB-{YOUR-ID}”**。
 
-1. Under **Time range**, select **Past hour**.
+1. 在 **“时间范围”** 下拉列表中，单击 **“过去一个小时”**。
 
-    You should now see a summary of alerts for the last hour. Under **Total alert rules** you should see **1**, the alert you created earlier. Below this, you will see a list of the severity categories as well as the count of alerts per category. The alerts we are interested in are **Sev 3**. You should see at least one (if you have stopped and restarted the device simulator, you may have generated more that one alert).
+    现在，你应该会看到过去一小时的警报摘要。在 **“总警报规则”** 下，你应该会看到 **“1”**，即你之前创建的警报。在下面，你将看到严重性类别的列表以及每个类别的警报计数。我们感兴趣的警报是 **严重性 3**。你应该至少看到一个（如果已停止并重新启动设备模拟器，则可能会生成多个警报）。
 
-1. In the list of severities, click **Sev 3**.
+1. 在严重性列表中，单击 **“严重性 3”**。
 
-    the **All Alerts** page will open. At the top of the page you will see a number of filter fields - these have been populated with the values from the preceding screen so that only the **Sev 3** alerts for the selected IoT hub are shown. It will show you the alerts that are active, and if there are any warnings.
+    **“所有警报”** 页面将会打开。在页面顶部，你会看到许多筛选器字段 - 这些字段已填充上一屏幕中的值，因此仅显示所选 IoT 中心的 **“严重性 3”** 警报。它将显示活动的警报以及任何警告。
 
-1. Select an alert from the list.
+1. 在 **“名称”** 下，要选择“严重性 3”警报，请单击 **“所连接设备大于或等于 5 个”**。
 
-    A pane will open showing a **Summary** of the details for the alert. This includes a chart illustrating why the alert fired - a dash line shows the threshold value as well as the current values for the monitored metric. Below this are details of the **Criterion** and other details.
+    将打开一个窗格，显示警报详细信息的 **“摘要”**。其中包括一个说明警报触发原因的图表，虚线标示了受监视指标的阈值以及当前值。以下是 **“条件”** 的详细信息和其他详细信息。
 
-1. At the top of the pane, below the title, click **History**.
+1. 在窗格顶部，单击标题下方的 **“历史记录”**。
 
-    In this view you can see when the alert fired, the action group that was invoked, and any other changes such as when the alert is resolved and so on.
+    在此视图中，可以看到警报触发时间、调用的操作组以及任何其他更改，例如警报解决时间等。
 
-1. At the top of the pane, below the title, click **Diagnostics**.
+1. 在窗格顶部，单击标题下方的 **“诊断”**。
 
-    If there were any issues related to the alert, addition details would be shown here.
+    如果存在与警报相关的任何问题，则会在此处显示其他详细信息。
 
-## See the Diagnostic Logs
+#### 任务 3：查看诊断日志
 
-Earlier, you set up your diagnostic logs to be exported to blob storage. Let's check to see what was written.
+在本实验的前面部分，你将设置诊断日志以导出到 Blob 存储。现在是检查并查看所写内容的好时机。
 
-1. Navigate to your "AZ-220-RG" resource group.
+1. 导航到仪表板，然后找到 “AZ-220-RG” 资源组磁贴。
 
-1. In the list of resources, select the Storage Account that was created earlier - **az220storage{YOUR-INITIALS-AND-CURRENT-DATE}**.
+1. 在资源列表中，选择之前创建的存储帐户 **(az220storage{your-id})**。
 
-    The **Overview** for the storage account will be displayed.
+    将会显示该存储帐户的 **“概述”**。
 
-1. Scroll down until you can see the metrics charts for the Storage Account: *Total egress*, *Toral ingress*, *Average latency* and *Request breakdown*. 
+1. 向下滚动，直到你可以看到存储帐户的指标图表：*总出口*、*总入口*、*平均延迟*和*要求明细*。
 
-    You should see that there is activity displayed.
+    你应该看到显示了活动。
 
-1. To view the data that has been logged, in the left hand navigation area, select **Storage explorer (preview)**.
+1. 在左侧的导航菜单上，要查看已记录的数据，请单击 **“存储资源管理器（预览版）”**。
 
-1. In the **Storage explorer** pane, expand the **BLOB CONTAINERS** node.
+1. 在 **“存储资源管理器”** 窗格中，展开 **“BLOB 容器”** 节点。
 
-    When Azure Monitor first sends data to a storage account, it creates a container called **insights-logs-connection**.
+    当 Azure Monitor 首次将数据发送到存储帐户时，它将创建一个名为 **“insights-logs-connection”** 的容器。
 
-1. Select the **insights-logs-connection** container - the contents of the container will be listed to the right.
+1. 在 **“BLOB 容器”** 下，单击 **“insights-logs-connection”**。
 
-    Logs are written to the container in a very nested fashion. You will need to open each subfolder in turn to navigate to the actual log data. The structure is similar to that show below:
+    容器的内容将在右侧列出。
+
+    日志以非常嵌套的方式写入容器。你将需要依次打开每个子文件夹以导航到实际的日志数据。结构类似于以下所示：
 
     * **resourceId=**
       * **SUBSCRIPTIONS**
-        * **<GUID>** - this is the ID for the subscription that generated the log
-          * **RESOURCEGROUPS** - contains a folder for each resource group that generated a log
-            * "AZ-220-RG" - the resource group that contains the IoT Hub
+        * **<GUID>** - 这是生成日志的订阅的 ID
+          * **RESOURCEGROUPS** - 包含每个生成日志的资源组的文件夹
+            * "AZ-220-RG" - 包含 IoT 中心的资源组
               * **PROVIDERS**
                 * **MICROSOFT.DEVICES**
                   * **IOTHUBS**
-                    * **AZ-220-HUB-{YOUR-INITIALS-AND-CURRENT-DATE}** - contains a folder for each year where a log was generated
-                      * **Y=2019** - contains a folder for each month where a log was generated
-                        * **m=12** - contains a folder for each day where a log was generated
-                          * **d=15** - contains a folder for each hour where a log was generated
-                            * **h=15** - contains a folder for each minute where a log was generated
-                              * **m=00** - contains the log file for that minute
+                    * **AZ-220-HUB-{YOUR-INITIALS-AND-CURRENT-DATE}** -  包含用于生成日志的文件夹，每年一个文件夹
+                      * **Y=2019** -  包含用于日志生成的文件夹，每月一个文件夹
+                        * **m=12** -  包含每天的文件夹，用作日志生成位置
+                          * **d=15** -  包含每小时的文件夹，用作日志生成位置
+                            * **h=15** -  包含每分钟的文件夹，用作日志生成位置
+                              * **m=00** -  包含该分钟的日志文件
 
-    Drill down until you get to the current date and select the most recent file.
+    向下钻取直到获得当前日期，然后选择最新文件。
 
-1. With the file selected, in the toolbar at the top of the pane, click **Download**.
+1. 选中文件后，在窗格顶部的工具栏上，单击 **“下载”**。
 
-1. Open the downloaded file in Visual Studio Code.
+1. 在 Visual Studio Code 中打开已下载的文件。
 
-    You should see a number of lines of JSON.
+    你应该会看到几行 JSON。
 
-1. To make the JSON easier to read, press **F1**, enter **Format document** and select **Format document** from the list of options.
+1. 要使 JSON 更易读取，请按 **F1**，输入 **“设置文档格式”**，然后从选项列表中选择 **“设置文档格式”**。
 
-    The JSON will show a list of connection and disconnection events similar to:
+    JSON 将显示连接和断开连接事件的列表，类似于：
 
     ```json
     {
@@ -883,4 +999,4 @@ Earlier, you set up your diagnostic logs to be exported to blob storage. Let's c
     }
     ```
 
-    Notice that each individual entry is a single JSON record - the overall document is not a a valid JSON document. Within each record you can see details relating to the originating IoT Hub and **properties** for each event. Within the **properties** object, you can see the connecting (or disconnecting) **deviceId**.
+    请注意，每个条目都是一个 JSON 记录，但整个文档不是有效的 JSON 文档。在每个记录中，可以查看与始发 IoT 中心相关的详细信息以及每个事件的 **“属性”**。在 **“属性”** 对象内，可以看到正在连接（或正在断开连接）的 **“deviceId”**。

@@ -1,176 +1,237 @@
----
+﻿---
 lab:
-    title: 'Lab 15: Remotely monitor and control devices with Azure IoT Hub'
-    module: 'Module 8: Device Management'
+    title: '实验 15：使用 Azure IoT 中心远程监视和控制设备'
+    module: '模块 8：设备管理'
 ---
 
-# Remotely monitor and control devices with Azure IoT Hub
+# 使用 Azure IoT 中心远程监视和控制设备
 
-## Lab Scenario
+## 实验室场景
 
-Suppose you manage a gourmet cheese making company in a southern location. The company is proud of its cheese, and is careful to maintain the perfect temperature and humidity of a natural cave that is used to age the cheese. There are sensors in the cave that report on the temperature and humidity. A remote operator can set a fan to new settings if needed, to maintain the perfect environment for the aging cheese. The fan can heat and cool, and humidify and de-humidify.
+Contoso 为其屡获殊荣的奶酪产品感到自豪，并在整个制造过程中都保持最佳的温度和湿度，但老化过程中的条件始终受到特别关注。
 
-Caves are used to mature cheese, their constant temperature, humidity, and air flow make them nearly ideal for the process. Not to mention the cachet of having your cheese products mature in a natural cave, instead of a constructed cellar. Something to put on your product labels!
+近年来，Contoso 使用环境传感器来记录其天然奶酪储藏室中发生老化的条件，并使用该数据来识别接近完美的环境。来自最成功（也称为获奖产品）位置的数据表明，老化奶酪的理想温度约为 50 华氏度 +/- 5 度（10 摄氏度 +/- 2.8 度）。以最大饱和度的百分比衡量的理想湿度值约为 85% +/- 10%。
 
-The accepted ideal temperature for aging cheese is 50 degrees fahrenheit (10 degrees centigrade), with up to 5 degrees (2.78 degrees C) either side of this being acceptable. Humidity is also important. Measured in percentage of maximum saturation, a humidity of between 75 and 95 percent is considered fine. We'll set 85 percent as the ideal, with a 10 percent variation as acceptable. These values apply to most cheeses. To achieve specific results, such as a certain condition of the rind, cheese makers will adjust these values for some of the time during aging.
+这些理想的温度和湿度值适用于大多数类型的奶酪。但是，对于特别坚硬或特别软的奶酪，需要做出较小的调整。还必须在老化过程中的关键时间/阶段调整环境条件，以实现特定的结果，例如奶酪皮的理想条件。
 
-In a southern location, a natural cave near the surface might have an ambient temperature of around 70 degrees. The cave might also have a relative humidity of close to 100 percent, because of water seeping through the roof. These high numbers aren't perfect conditions for aging cheese. At a more northerly location, the ambient temperature of a natural cave can be the ideal of 50 degrees. Because of our location, we need some Azure IoT intervention!
+Contoso 非常幸运，可以经营奶酪储藏室（在某些地理区域内），这些奶酪储藏室几乎全年都可以自然保持理想的条件。但是，即使在这些位置，老化过程中的环境管理也至关重要。同样，天然储藏室通常具有许多不同的洞室，每个洞室的环境可能略有不同。各种奶酪放置在符合其特定要求的洞室（区域）中。为了将环境条件保持在期望的限制内，Contoso 使用了同时控制温度和湿度的空气处理/调节系统。
 
-### Sending and Receiving Telemetry
+当前，操作员监视储藏室设施每个区域内的环境条件，并在需要保持所需温度和湿度时调整空气处理系统设置。操作员能够每隔 4 小时访问每个区域并检查环境条件。在白天高温和夜间低温之间温度急剧变化的地方，条件可能会超出所需的限制。
 
-The frequency of telemetry output is an important factor. A temperature sensor in a refrigeration unit may only have to report every minute, or less. An acceleration sensor on an aircraft may have to report at least every second.
+Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制范围内。
 
-An IoT device may contain one or more sensors, and have some computational power. There may be LED lights, and even a small screen, on the IoT device. However, the device isn't intended for direct use by a human operator. An IoT device is designed to receive its instructions from the cloud.
+在本实验室中，你将为实现  IoT 设备的奶酪储藏室监控系统进行原型设计。每个设备都配备了温度和湿度传感器，并连接到空气处理系统，该系统控制设备所在区域的温度和湿度。
 
-### Control a Cheese Cave Device
+### 简化的实验室条件
 
-In this module, we assume the IoT cheese cave monitoring device has temperature and humidity sensors. The device has a fan capable of both cooling or heating, and humidifying or de-humidifying. Every few seconds, the device sends current temperature and humidity values to the IoT Hub. This rapid frequency is unrealistic for a cheese cave (maybe every 15 minutes, or less, would be granular enough), except during code development when we want rapid activity!
+遥测输出的频率是生产解决方案中的重要考虑因素。制冷单元中的温度传感器可能只需要每分钟报告一次，而飞机上的加速度传感器可能需要每秒报告十次。在某些情况下，必须发送遥测的频率取决于当前条件。例如，如果我们的奶酪储藏室环境温度总是在夜间快速下降，日落前两小时会开始更频繁地进行传感器读数。当然，更改遥测频率的要求不需要是可预测模式的一部分，让我们更改 IoT 设备设置的事件可能是不可预测的。
 
-For this lab, we assume that the fan can be in one of three states: on, off, and failed. The fan is initialized to the off state. In a later unit, the fan is turned on by use of a direct method.
+为了保持在本实验室的简单易行，我们将做出以下假设：
 
-Another feature of our IoT device is that it can accept desired values from the IoT Hub. The device can then adjust its fan to target these desired values. These values are coded in this module using a feature called device twins. Desired values will override any default settings for the device.
+* 设备将每隔几秒向 IoT 中心发送遥测数据（温度和湿度值）。虽然这种频率对于奶酪储藏室来说是不现实的，但当我们需要经常看到变化时，而不是每 15 分钟一次，它对于实验室环境来说非常重要。
+* 空气处理系统是一个风扇，可以处于以下三种状态之一：开、关或失败。
+  * 风扇初始化为“关闭”状态。
+  * 使用 IoT 设备上的直接方法来控制（打开/关闭）风扇的电源。
+  * 设备孪生所需属性值用于设置风扇的所需状态。所需属性值将覆盖风扇/设备的任何默认设置。
+  * 可以通过打开/关闭风扇来控制温度（打开风扇会降低温度）
 
-### Coding the Sample
+本实验中的编码分为三个部分：发送和接收遥测，调用和运行直接方法，设置和读取设备孪生属性。
 
-The coding in this module is broken down into three parts: sending and receiving telemetry, sending and receiving a direct method, and managing device twins.
+你将首先编写两个应用：一个用于发送遥测的设备，另一个用于后端服务（将在云中运行）以接收遥测。
 
-Let's start by writing two apps: one for the device to send telemetry, and one back-end service to run in the cloud, to receive the telemetry. You'll be able to select your preferred language (Node.js or C#), and development environment (Visual Studio Code, or Visual Studio).
+将创建以下资源：
 
-## In this lab
+![实验 15 体系结构](media/LAB_AK_15-architecture.png)
 
-In this lab you will:
+## 在该实验室中
 
-* Create a custom Azure IoT Hub, using the IoT Hub portal
-* Create an IoT Hub device ID, using the IoT Hub portal
-* Create an app to send device telemetry to the custom IoT Hub, in C# or Node.js
-* Create a back-end service app to listen for the telemetry
-* Implement a direct method, to communicate settings to the remote device
-* Implement device twins, to maintain remote device properties
+在本实验室中，你将完成以下活动：
 
+* 验证实验室先决条件
+* 使用 IoT 中心门户创建自定义 Azure IoT 中心
+* 使用 IoT 中心门户创建 IoT 中心设备 ID
+* 创建一个应用以将设备遥测发送到自定义 IoT 中心
+* 创建一个后端服务应用以监听遥测
+* 实现直接方法，以将设置传达给远程设备
+* 实现设备孪生，以维护远程设备属性
 
-## Exercise 1: Create a custom Azure IoT Hub, using the IoT Hub portal
+## 实验室说明
 
-This lab assumes the following resources are available:
+### 练习 1：验证实验室先决条件
 
-| Resource Type | Resource Name |
+本实验室假定以下 Azure 资源可用：
+
+| 资源类型 | 资源名称 |
 | :-- | :-- |
-| Resource Group | AZ-220-RG |
-| IoT Hub | AZ-220-HUB-{YOUR-ID} |
-| IoT Device | CheeseCaveID |
+| 资源组 | AZ-220-RG |
+| IoT 中心 | AZ-220-HUB-_{YOUR-ID}_ |
+| IoT 设备 | CheeseCaveID |
 
-To create these resources, please update and execute the **lab-setup.azcli** script before starting the lab.
+如果这些资源不可用，则需要按照下面的说明运行 **lab15-setup.azcli** 脚本，然后再继续练习 2 。脚本文件包含在本地克隆作为开发环境配置（实验室 3）的 GitHub 存储库中。
 
-1. Using a browser, open the [Azure Shell](https://shell.azure.com/) and login with the Azure subscription you are using for this course.
+**lab15-setup.azcli** 脚本编写为在 **bash** shell 环境中运行 - 执行此操作的最简单方法是在 Azure Cloud Shell 中运行。
 
-1. To ensure the Azure Shell is using **Bash**, ensure the dropdown selected value in the top-left is **Bash**.
+>**注：**你将需要 **CheeseCaveID** 设备的连接字符串。如果你已经在 Azure IoT 中心注册了此设备，则可以通过在 Azure Cloud Shell 中运行以下命令来获取连接字符串
+>
+> ```bash
+> az iot hub device-identity show-connection-string --hub-name AZ-220-HUB-{YOUR-ID} --device-id CheeseCaveID -o tsv
+> ```
 
-1. To upload the setup script, in the Azure Shell toolbar, click **Upload/Download files** (fourth button from the right).
+1. 使用浏览器打开 [Azure Shell](https://shell.azure.com/)，并使用本课程所使用的 Azure 订阅登录。
 
-1. In the dropdown, select **Upload** and in the file selection dialog, navigate to the **lab-setup.azcli** file for this lab. Select the file and click **Open** to upload it.
+    如果系统提示设置 Cloud Shell 的存储，请接受默认设置。
 
-    A notification will appear when the file upload has completed.
+1. 验证 Azure Cloud Shell 是否正在使用 **Bash**。
 
-1. You can verify that the file has uploaded by listing the content of the current directory by entering the `ls` command.
+    Azure Cloud Shell 页面左上角的下拉菜单用于选择环境。验证所选的下拉值是否为 **Bash**。
 
-1. To create a directory for this lab, move **lab-setup.azcli** into that directory, and make that the current working directory, enter the following commands:
+1. 在 Azure Shell 工具栏上，单击 **上传/下载文件** （从右数第四个按钮）。
+
+1. 在下拉菜单中，单击 **“上传”**。
+
+1. 在“文件选择”对话框中，导航到配置开发环境时下载的 GitHub 实验室文件的文件夹位置。
+
+    在_实验室 3 中：设置开发环境_，你可以通过下载 ZIP 文件并从本地提取内容来克隆包含实验室资源的 GitHub 存储库。提取的文件夹结构包括以下文件夹路径：
+
+    * Allfiles
+      * 实验室
+          * 15-使用 Azure IoT 中心远程监视和控制设备
+            * 设置
+
+    lab15-setup.azcli 脚本文件位于实验室 15 的设置文件夹中。
+
+1. 选择 **“lab15-setup.azcli”** 文件，然后单击 **“打开”**。
+
+    文件上传完成后，将显示一条通知。
+
+1. 若要验证在 Azure Cloud Shell 中已上传了正确文件，请输入以下命令：
+
+    ```bash
+    ls
+    ```
+
+    使用 `ls` 命令列出当前目录的内容。你应该看到列出的 lab15-setup.azcli 文件。
+
+1. 若要为此实验室创建一个包含安装脚本的目录，然后移至该目录，请输入以下 Bash 命令：
 
     ```bash
     mkdir lab15
-    mv lab-setup.azcli lab15
+    mv lab15-setup.azcli lab15
     cd lab15
     ```
 
-1. To ensure the **lab-setup.azcli** has the execute permission, enter the following commands:
+1. 为了保证 **lab15-setup.azcli** 具有执行权限，请输入以下命令：
 
     ```bash
-    chmod +x lab-setup.azcli
+    chmod +x lab15-setup.azcli
     ```
 
-1. To edit the **lab-setup.azcli** file, click **{ }** (Open Editor) in the toolbar (second button from the right). In the **Files** list, select **lab15** to expand it and then select **lab-setup.azcli**.
+1. 在“Cloud Shell”工具栏上，请单击 **“打开编辑器”** （右侧的第二个按钮 - **{ }**）编辑 lab15-setup.azcli 文件。
 
-    The editor will now show the contents of the **lab-setup.azcli** file.
+1. 在 **“文件”** 列表，展开 lab15 文件夹并打开脚本文件，单击 **“lab15”**，然后单击 **“lab15-setup.azcli”**。
 
-1. In the editor, update the values of the `YourID` and `Location` variables. Set `YourID` to your initials and todays date - i.e. **CAH121119**, and set `Location` to the location that makes sense for your resources.
+    编辑器现在将显示 **lab15-setup.azcli** 文件的内容。
 
-    > [!NOTE] The `Location` variable should be set to the short name for the location. You can see a list of the available locations and their short-names (the **Name** column) by entering this command:
+1. 在编辑器中，更新已分配的 `{YOUR-ID}` 和 `SETLOCATION` 值。
+
+    以下面的示例为例，你需要将 `{YOUR-ID}` 设置为在本课程开始时创建的唯一 ID，即 **“CAH191211”**，然后将 `SETLOCATION` 设置为对你的资源有意义的位置。
+
+    ```bash
+    #!/bin/bash
+
+    YourID="{YOUR-ID}"
+    RGName="AZ-220-RG"
+    IoTHubName="AZ-220-HUB-$YourID"
+    DeviceID="CheeseCaveID"
+
+    Location="SETLOCATION"
+    ```
+
+    > **注释**：  `Location` 变量应设置为位置的短名称。输入以下命令，可以看到可用位置及其短名称的列表（**“名称”**列）：
+    >
     > ```bash
     > az account list-locations -o Table
     > ```
+    >
     > ```text
     > DisplayName           Latitude    Longitude    Name
     > --------------------  ----------  -----------  ------------------
-    > East Asia             22.267      114.188      eastasia
-    > Southeast Asia        1.283       103.833      southeastasia
-    > Central US            41.5908     -93.6208     centralus
-    > East US               37.3719     -79.8164     eastus
+    > 东亚            22.267      114.188      eastasia
+    > 东南亚       1.283       103.833      southeastasia
+    > 美国中部            41.5908     -93.6208     centralus
+    > 美国东部               37.3719     -79.8164     eastus
     > East US 2             36.6681     -78.3889     eastus2
     > ```
 
-1. To save the changes made to the file and close the editor, click **...** in the top-right of the editor window and select **Close Editor**.
+1. 要保存对文件所做的更改并关闭编辑器，请单击编辑器窗口右上角的 **“...”**，然后单击 **“关闭编辑器”**。
 
-    If prompted to save, click **Save** and the editor will close.
+    如果提示保存，请单击 **“保存”**，编辑器将会关闭。
 
-    > [!NOTE] You can use **CTRL+S** to save at any time and **CTRL+Q** to close the editor.
+    > **注释**：  可以使用 **CTRL+S** 随时保存，使用 **CTRL+Q** 关闭编辑器。
 
-1. To create a resource group named **AZ-220-RG**, create an IoT Hub named **AZ-220-HUB-{YourID}**, add a device with an ID of **CheeseCaveID**, and display the device connection string, enter the following command:
+1. 要创建本实验室所需的资源，请输入以下命令：
 
     ```bash
-    ./lab-setup.azcli
+    ./lab15-setup.azcli
     ```
 
-    This will take a few minutes to run. You will see JSON output as each step completes.
+    运行此脚本可能需要几分钟。每个步骤完成时，你将会看到 JSON 输出。
 
-1. Once complete, the script will be display data similar to:
+    该脚本将首先创建一个名为 **AZ-220-RG** 的资源组和一个名为 **AZ-220-HUB-{YourID}** 的 IoT 中心。如果它们已经存在，将显示相应的消息。然后，脚本会将 ID 为 **CheeseCaveID** 的设备添加到 IoT 中心，并显示设备连接字符串。
+
+1. 请注意，脚本完成后，将显示与你的 IoT 中心和设备有关的信息。
+
+    脚本将显示类似于以下内容的信息：
 
     ```text
-    Configuration Data:
+    配置数据：
     ------------------------------------------------
-    AZ-220-HUB-DM121119 hub connectionstring:
-    HostName=AZ-220-HUB-DM121119.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=nV9WdF3Xk0jYY2Da/pz2i63/3lSeu9tkW831J4aKV2o=
+    AZ-220-HUB-{YourID} 服务连接字符串：
+    HostName=AZ-220-HUB-{YourID}.azure-devices.net;SharedAccessKeyName=iothubowner;SharedAccessKey=nV9WdF3Xk0jYY2Da/pz2i63/3lSeu9tkW831J4aKV2o=
 
-    CheeseCaveID device connection string:
-    HostName=AZ-220-HUB-DM121119.azure-devices.net;DeviceId=CheeseCaveID;SharedAccessKey=TzAzgTYbEkLW4nWo51jtgvlKK7CUaAV+YBrc0qj9rD8=
+    CheeseCaveID 设备连接字符串：
+    HostName=AZ-220-HUB-{YourID}.azure-devices.net;DeviceId=CheeseCaveID;SharedAccessKey=TzAzgTYbEkLW4nWo51jtgvlKK7CUaAV+YBrc0qj9rD8=
 
-    AZ-220-HUB-DM121119 eventhub endpoint:
+    AZ-220-HUB-{YourID} eventhub 终结点：
     sb://iothub-ns-az-220-hub-2610348-5a463f1b56.servicebus.windows.net/
 
-    AZ-220-HUB-DM121119 eventhub path:
-    az-220-hub-dm121119
+    AZ-220-HUB-{YourID} eventhub 路径：
+    az-220-hub-{YourID}
 
-    AZ-220-HUB-DM121119 eventhub SaS primarykey:
+    AZ-220-HUB-{YourID} eventhub SaS 主键：
     tGEwDqI+kWoZroH6lKuIFOI7XqyetQHf7xmoSf1t+zQ=
     ```
 
-    Copy these values to a local text file - you will need them for the coding portion of this lab.
-    
-You've now completed the preparatory work for this module, the next steps are all coding and testing. Before we advance though, a quick knowledge check!
+1. 将脚本显示的输出复制到文本文档中，以供本实验室稍后使用。
 
-## Exercise 2: Write Code to Send and Receive Telemetry
+    将信息保存到可以轻松找到的位置后，就可以继续进行本实验。
 
-At the end of this unit, you'll be sending and receiving telemetry.
+### 练习 2：写入发送和接收遥测的代码
 
-# Create an app to send telemetry
+在本练习中，你将创建模拟设备应用（适用于 CheeseCaveID 设备），该应用将遥测发送到 IoT 中心。
 
-1. To use C# in Visual Studio Code, ensure both [.NET Core](https://dotnet.microsoft.com/download), and the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.csharp) are installed.
+#### 任务 1：在 Visual Studio Code 中创建控制台应用
 
-1. To open a terminal in Visual Studio Code, open the **Terminal** menu and click **New Terminal**.
+1. 打开 Visual Studio Code。
 
-1. In the terminal, to create a directory called "cheesecavedevice" and change the current directory to that directory, enter the following commands:
+1. 在 **“终端”** 菜单中，单击 **“新建终端”**。
 
-   ```bash
-   mkdir cheesecavedevice
-   cd cheesecavedevice
-   ```
+1. 在终端命令提示符处，要创建一个名为 “cheesecavedevice” 的目录并将当前目录更改为该目录，请输入以下命令：
 
-1. To create a new .NET console application. enter the following command in the terminal:
+    ```bash
+    mkdir cheesecavedevice
+    cd cheesecavedevice
+    ```
+
+1. 要创建新的 .NET 控制台应用程序，请输入以下命令：
 
     ```bash
     dotnet new console
     ```
 
-    This command creates a **Program.cs** file in your folder, along with a project file.
+    此命令将在文件夹中创建一个 **Program.cs** 文件以及一个项目文件。
 
-1. In the terminal, to install the required libraries. Enter the following commands:
+1. 要安装所需的库，请输入以下命令：
 
     ```bash
     dotnet add package Microsoft.Azure.Devices.Client
@@ -178,23 +239,29 @@ At the end of this unit, you'll be sending and receiving telemetry.
     dotnet add package Newtonsoft.Json
     ```
 
-1. From the **File** menu, open up the **Program.cs** file, and delete the default contents.
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**
 
-    > [!NOTE] If you are unsure where the **Program.cs** file is located, enter the command `pwd` in the console to see the current directory.
+1. 在 **“打开文件夹”** 对话框中，导航到“终端”窗格中指定的文件夹位置，单击 **“奶酪储藏室装置”**，然后单击 **“选择文件夹”**
 
-1. After you've entered the code below into the **Program.cs** file, you can run the app with the command `dotnet run`. This command will run the **Program.cs** file in the current folder.
+    应在 Visual Studio Code 中打开 EXPLORER 窗格，你应该会看到列出的 `Program.cs` 和 `cheesecadedevice.csproj` 文件。
 
-## Add Code to Send Telemetry
+1. 在 **“资源管理器”** 窗格中，单击 **“Program.cs”**。
 
-This section adds code to send telemetry from a simulated device. The device sends temperature (in degrees fahrenheit) and humidity (in percentages), regardless of whether any back-end app is listening or not.
+1. 在“代码编辑器”窗格中，删除 Program.cs 文件的内容。
 
-1. If it isn't already open in Visual Studio Code, open the **Program.cs** file for the device app.
+#### 任务 2：添加代码以模拟你的 CheeseCaveID IoT 设备
 
-1. Copy and paste the following code:
+在此任务中，你将添加代码以从模拟设备发送遥测。该设备将发送温度（以华氏度为单位）和湿度（以百分比为单位），而不管任何后端应用是否在监听。
+
+1. 确保 **Program.cs** 文件在 Visual Studio Code 中处于打开状态。
+
+    “代码编辑器”窗格应该会显示一个空的代码文件。
+
+1. 将以下代码复制并粘贴到“代码编辑器”窗格中：
 
     ```csharp
-    // Copyright (c) Microsoft. All rights reserved.
-    // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+    // 版权所有 (c) Microsoft。版权所有。
+    // 已获得 MIT License 颁发的许可证。有关完整的许可信息，请参阅项目根目录中的许可文件。
 
     using System;
     using Microsoft.Azure.Devices.Client;
@@ -208,28 +275,28 @@ This section adds code to send telemetry from a simulated device. The device sen
     {
         class SimulatedDevice
         {
-        // Global constants.
+        // 全局常数。
             const float ambientTemperature = 70;                    // Ambient temperature of a southern cave, in degrees F.
             const double ambientHumidity = 99;                      // Ambient humidity in relative percentage of air saturation.
-            const double desiredTempLimit = 5;                      // Acceptable range above or below the desired temp, in degrees F.
-            const double desiredHumidityLimit = 10;                 // Acceptable range above or below the desired humidity, in percentages.
-            const int intervalInMilliseconds = 5000;                // Interval at which telemetry is sent to the cloud.
+            const double desiredTempLimit = 5;                      // 高于或低于所需温度的可接受范围，以华氏度为单位。
+            const double desiredHumidityLimit = 10;                 // 高于或低于所需湿度的可接受范围，以百分比为单位。
+            const int intervalInMilliseconds = 5000;                // 将遥测发送到云的时间间隔。
 
-            // Global variables.
+            // 全局变量。
             private static DeviceClient s_deviceClient;
-            private static stateEnum fanState = stateEnum.off;                      // Initial setting of the fan.
-            private static double desiredTemperature = ambientTemperature - 10;     // Initial desired temperature, in degrees F.
-            private static double desiredHumidity = ambientHumidity - 20;           // Initial desired humidity in relative percentage of air saturation.
+            private static stateEnum fanState = stateEnum.off;                      // 风扇的初始设置。
+            private static double desiredTemperature = ambientTemperature - 10;     // 初始所需温度，单位为华氏度。
+            private static double desiredHumidity = ambientHumidity - 20;           // 初始期望湿度，以空气饱和度的相对百分比表示。
 
-            // Enum for the state of the fan for cooling/heating, and humidifying/de-humidifying.
-            enum stateEnum
+            // 枚举冷却/加热和加湿/除湿风扇的状态。
+            枚举状态
             {
                 off,
                 on,
                 failed
             }
 
-            // The device connection string to authenticate the device with your IoT hub.
+            // 用于通过 IoT 中心对设备进行身份验证的设备连接字符串。
             private readonly static string s_deviceConnectionString = "<your device connection string>";
 
             private static void colorMessage(string text, ConsoleColor clr)
@@ -248,27 +315,27 @@ This section adds code to send telemetry from a simulated device. The device sen
                 colorMessage(text, ConsoleColor.Red);
             }
 
-            // Async method to send simulated telemetry.
+            // 异步方法发送模拟遥测。
             private static async void SendDeviceToCloudMessagesAsync()
             {
-                double currentTemperature = ambientTemperature;         // Initial setting of temperature.
-                double currentHumidity = ambientHumidity;               // Initial setting of humidity.
+                double currentTemperature = ambientTemperature;         // 温度的初始设置。
+                double currentHumidity = ambientHumidity;               // 湿度的初始设置。
 
                 Random rand = new Random();
 
                 while (true)
                 {
-                    // Simulate telemetry.
+                    // 模拟遥测。
                     double deltaTemperature = Math.Sign(desiredTemperature - currentTemperature);
                     double deltaHumidity = Math.Sign(desiredHumidity - currentHumidity);
 
                     if (fanState == stateEnum.on)
                     {
-                        // If the fan is on the temperature and humidity will be nudged towards the desired values most of the time.
+                        // 如果风扇打开，温度和湿度将在大部分时间内减至所需值。
                         currentTemperature += (deltaTemperature * rand.NextDouble()) + rand.NextDouble() - 0.5;
                         currentHumidity += (deltaHumidity * rand.NextDouble()) + rand.NextDouble() - 0.5;
 
-                        // Randomly fail the fan.
+                        // 风扇随机故障。
                         if (rand.NextDouble() < 0.01)
                         {
                             fanState = stateEnum.failed;
@@ -277,7 +344,7 @@ This section adds code to send telemetry from a simulated device. The device sen
                     }
                     else
                     {
-                        // If the fan is off, or has failed, the temperature and humidity will creep up until they reaches ambient values, thereafter fluctuate randomly.
+                        // 如果风扇关闭或出现故障，则温度和湿度将逐渐上升直至达到环境值，此后会随机波动。
                         if (currentTemperature < ambientTemperature - 1)
                         {
                             currentTemperature += rand.NextDouble() / 10;
@@ -296,10 +363,10 @@ This section adds code to send telemetry from a simulated device. The device sen
                         }
                     }
 
-                    // Check: humidity can never exceed 100%.
+                    // 检查：湿度不能超过 100％。
                     currentHumidity = Math.Min(100, currentHumidity);
 
-                    // Create JSON message.
+                    // 创建 JSON 消息。
                     var telemetryDataPoint = new
                     {
                         temperature = Math.Round(currentTemperature, 2),
@@ -308,11 +375,11 @@ This section adds code to send telemetry from a simulated device. The device sen
                     var messageString = JsonConvert.SerializeObject(telemetryDataPoint);
                     var message = new Message(Encoding.ASCII.GetBytes(messageString));
 
-                    // Add custom application properties to the message.
+                    // 将自定义应用程序属性添加到消息中。
                     message.Properties.Add("sensorID", "S1");
                     message.Properties.Add("fanAlert", (fanState == stateEnum.failed) ? "true" : "false");
 
-                    // Send temperature or humidity alerts, only if they occur.
+                    // 仅在出现温度或湿度警报时才发送警报。
                     if ((currentTemperature > desiredTemperature + desiredTempLimit) || (currentTemperature < desiredTemperature - desiredTempLimit))
                     {
                         message.Properties.Add("temperatureAlert", "true");
@@ -324,7 +391,7 @@ This section adds code to send telemetry from a simulated device. The device sen
 
                     Console.WriteLine("Message data: {0}", messageString);
 
-                    // Send the telemetry message.
+                    // 发送遥测消息。
                     await s_deviceClient.SendEventAsync(message);
                     greenMessage("Message sent\n");
 
@@ -335,7 +402,7 @@ This section adds code to send telemetry from a simulated device. The device sen
             {
                 colorMessage("Cheese Cave device app.\n", ConsoleColor.Yellow);
 
-                // Connect to the IoT hub using the MQTT protocol.
+                // 使用 MQTT 协议连接到 IoT 中心。
                 s_deviceClient = DeviceClient.CreateFromConnectionString(s_deviceConnectionString, TransportType.Mqtt);
 
                 SendDeviceToCloudMessagesAsync();
@@ -345,56 +412,76 @@ This section adds code to send telemetry from a simulated device. The device sen
     }
     ```
 
-    > **Important:** Read through the comments in the code, noting how the temperature and humidity settings from the description of the scenario in the introduction have worked their way into the code.
+1. 花几分钟时间查看代码。
 
-1. Replace the `<your device connection string>` with the device connection string you saved off in the previous unit. No other lines of code need to be changed.
+    > **重要事项：**通读代码中的注释，注意奶酪储藏室方案的温度和湿度设置是如何被写入代码中的。
 
-1. Save the **Program.cs** file.
+1. 找到用于分配设备连接字符串的代码行
 
-## Test your Code to Send Telemetry
+    ```csharp
+    private readonly static string s_deviceConnectionString = "<your device connection string>";
+    ```
 
-1. To run the app in the terminal, enter the following command:
+1. 将 `<your device connection string>` 替换为你之前在本实验室保存的 CheeseCaveID 设备连接字符串。
+
+    你应该已经保存了练习 1 期间 lab15-setup.azcli 设置脚本生成的输出。
+
+    无需更改其他代码行。
+
+1. 在 **“文件”**菜单，将你的更改保存到 Program.cs 文件，单击 **“保存”**。
+
+#### 任务 3：测试你的代码以发送遥测
+
+1. 在 Visual Studio Code 中，确保你已打开“终端”。
+
+1. 在终端命令提示符下，要运行模拟设备应用，请输入以下命令：
 
     ```bash
     dotnet run
     ```
 
-   This command will run the **Program.cs** file in the current folder.
+   此命令将在当前文件夹中运行 **“Program.cs”** 文件。
 
-1. You should quickly see console output, similar to the following:
+1. 注意输出已发送到终端。
 
-    ![Console Output](../../Linked_Image_Files/M99-L15-cheesecave-telemetry.png)
+    你应该很快就能看到控制台输出，类似于：
 
-    > [!NOTE] Green text is used to show things are working as they should and red text when bad stuff is happening. If you don't get a screen similar to this image, start by checking your device connection string.
+    ![控制台输出](./Media/LAB_AK_15-cheesecave-telemetry.png)
 
-1. Watch the telemetry for a short while, checking that it is giving vibrations in the expected ranges.
+    > **注释**：  绿色文本表示一切正常，红色文本表示存在异常。如果没有得到类似于此图片显示的屏幕，请先检查设备连接字符串。
 
-1. You can leave this app running, as it's needed for the next section.
+1. 保持此应用持续运行。
 
-## Create a Second App to Receive Telemetry
+    在本实验的后部分，你需要将遥测发送到 IoT 中心。
 
-Now we have a device pumping out telemetry, we need to listen for that telemetry with a back-end app, also connected to our IoT Hub.
+### 练习 3：创建第二个应用以接收遥测
 
-1. As the device app is running in a copy of Visual Studio Code, you will need to open a new instance of Visual Studio Code.
+现在，你已有（模拟） CheeseCaveID 设备将遥测发送到你的 IoT 中心，你需要创建一个后端应用，该应用可以连接到 IoT 中心并 “侦听”该遥测。最终，此后端应用将用于自动控制奶酪储藏室中的温度。
 
-1. To open a terminal in Visual Studio Code, open the **Terminal** menu and click **New Terminal**.
+#### 任务 1：创建一个应用以接收遥测
 
-1. In the terminal, to create a directory called "cheesecaveoperator" and change the current directory to that directory, enter the following commands:
+1. 打开一个新的 Visual Studio Code 实例。
+
+    由于模拟设备应用正在已打开的 Visual Studio Code 窗口中运行，因此你需要为后端应用提供一个新的 Visual Studio Code 实例。
+
+1. 在 **“终端”** 菜单中，单击 **“新建终端”**。
+
+1. 在终端命令提示符下，要创建一个名为 “cheesecaveoperator” 的目录并将当前目录更改为该目录，请输入以下命令：
 
    ```bash
    mkdir cheesecaveoperator
    cd cheesecaveoperator
    ```
 
-1. To create a new .NET console application. enter the following command in the terminal:
+1. 要创建新的 .NET 控制台应用程序，请输入以下命令：
 
     ```bash
     dotnet new console
     ```
 
-    This command creates a **Program.cs** file in your folder, along with a project file.
+    此命令将在文件夹中创建一个 **Program.cs** 文件以及一个项目文件。
 
-1. In the terminal, to install the required libraries. Enter the following commands:
+1. 要安装所需的库，请输入以下命令：
 
     ```bash
     dotnet add package Microsoft.Azure.EventHubs
@@ -402,23 +489,29 @@ Now we have a device pumping out telemetry, we need to listen for that telemetry
     dotnet add package Newtonsoft.Json
     ```
 
-1. From the **File** menu, open up the **Program.cs** file, and delete the default contents.
+1. 在 **“文件”** 菜单上，单击 **“打开文件夹”**
 
-    > [!NOTE] If you are unsure where the **Program.cs** file is located, enter the command `pwd` in the console to see the current directory.
+1. 在 **“打开文件夹”** 对话框中，导航到“终端”窗格中指定的文件夹位置，单击 **“cheesecaveoperator”**，然后单击 **“选择文件夹”**
 
-1. After you've entered the code below into the **Program.cs** file, you can run the app with the command `dotnet run`. This command will run the **Program.cs** file in the current folder.
+    “资源管理器”窗格应该在 Visual Studio Code 中处于打开状态，并且你应该看到列出的 `Program.cs` 和 `cheesecaveoperator.csproj` 文件。
 
-## Add Code to Receive Telemetry
+1. 在 **“资源管理器”** 窗格中，单击 **“Program.cs”**。
 
-This section adds code to receive telemetry from the IoT Hub Event Hub endpoint. 
+1. 在“代码编辑器”窗格中，删除 Program.cs 文件的内容。
 
-1. If it isn't already open in Visual Studio Code, open the **Program.cs** file for the device app.
+#### 任务 2：添加代码以接收遥测
 
-1. Copy and paste the following code:
+在此任务中，你将向后端应用添加代码，这些代码将用于从 IoT 中心事件中心终结点接收遥测。
+
+1. 确保 **Program.cs** 文件在 Visual Studio Code 中处于打开状态。
+
+    “代码编辑器”窗格应该会显示一个空的代码文件。
+
+1. 将以下代码复制并粘贴到“代码编辑器”窗格中：
 
     ```csharp
-    // Copyright (c) Microsoft. All rights reserved.
-    // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+    // 版权所有 (c) Microsoft。版权所有。
+    // 已获得 MIT License 颁发的许可证。有关完整的许可信息，请参阅项目根目录中的许可文件。
 
     using System;
     using System.Threading.Tasks;
@@ -434,32 +527,32 @@ This section adds code to receive telemetry from the IoT Hub Event Hub endpoint.
     {
         class ReadDeviceToCloudMessages
         {
-            // Global variables.
-            // The Event Hub-compatible endpoint.
+            // 全局变量。
+            // 与事件中心兼容的终结点。
             private readonly static string s_eventHubsCompatibleEndpoint = "<your event hub endpoint>";
 
-            // The Event Hub-compatible name.
+            // 与事件中心兼容的名称。
             private readonly static string s_eventHubsCompatiblePath = "<your event hub path>";
             private readonly static string s_iotHubSasKey = "<your event hub Sas key>";
             private readonly static string s_iotHubSasKeyName = "service";
             private static EventHubClient s_eventHubClient;
 
-            // Connection string for your IoT Hub.
+            // IoT 中心的连接字符串。
             private readonly static string s_serviceConnectionString = "<your service connection string>";
 
-            // Asynchronously create a PartitionReceiver for a partition and then start reading any messages sent from the simulated client.
+            // 异步为分区创建 PartitionReceiver，然后开始读取从模拟客户端发送的所有消息。
             private static async Task ReceiveMessagesFromDeviceAsync(string partition)
             {
-                // Create the receiver using the default consumer group.
+                // 使用默认使用者组创建接收方。
                 var eventHubReceiver = s_eventHubClient.CreateReceiver("$Default", partition, EventPosition.FromEnqueuedTime(DateTime.Now));
                 Console.WriteLine("Created receiver on partition: " + partition);
 
                 while (true)
                 {
-                    // Check for EventData - this methods times out if there is nothing to retrieve.
+                    // 检查 EventData - 如果没有要检索的内容，此方法将超时。
                     var events = await eventHubReceiver.ReceiveAsync(100);
 
-                    // If there is data in the batch, process it.
+                    // 如果批处理中有数据，请对其进行处理。
                     if (events == null) continue;
 
                     foreach (EventData eventData in events)
@@ -484,22 +577,22 @@ This section adds code to receive telemetry from the IoT Hub Event Hub endpoint.
             {
                 colorMessage("Cheese Cave Operator\n", ConsoleColor.Yellow);
 
-                // Create an EventHubClient instance to connect to the IoT Hub Event Hubs-compatible endpoint.
+                // 创建一个 EventHubClient 实例以连接到 IoT 中心与事件中心兼容的终结点。
                 var connectionString = new EventHubsConnectionStringBuilder(new Uri(s_eventHubsCompatibleEndpoint), s_eventHubsCompatiblePath, s_iotHubSasKeyName, s_iotHubSasKey);
                 s_eventHubClient = EventHubClient.CreateFromConnectionString(connectionString.ToString());
 
-                // Create a PartitionReceiver for each partition on the hub.
+                // 为中心上的每个分区创建一个 PartitionReceiver。
                 var runtimeInfo = s_eventHubClient.GetRuntimeInformationAsync().GetAwaiter().GetResult();
                 var d2cPartitions = runtimeInfo.PartitionIds;
 
-                // Create receivers to listen for messages.
+                // 创建接收方以侦听消息。
                 var tasks = new List<Task>();
                 foreach (string partition in d2cPartitions)
                 {
-                    tasks.Add(ReceiveMessagesFromDeviceAsync(partition));
+                    asks.Add(ReceiveMessagesFromDeviceAsync(partition));
                 }
 
-                // Wait for all the PartitionReceivers to finish.
+                // 等待所有 PartitionReceivers 完成。
                 Task.WaitAll(tasks.ToArray());
             }
 
@@ -522,78 +615,109 @@ This section adds code to receive telemetry from the IoT Hub Event Hub endpoint.
     }
     ```
 
-    > **Important:** Read through the comments in the code. Our implementation only reads messages after the back-end app has been started. Any telemetry sent prior to this isn't handled.
+1. 花几分钟时间查看代码。
 
-1. Replace the `<your device connection string>` with the device connection string you saved off in the previous unit. No other lines of code need to be changed.
+    > **重要事项：** 通读代码中的注释。我们的实现仅在启动后端应用后读取消息。在此之前发送的任何遥测都不会处理。
 
-1. Replace the `<your event hub endpoint>`, `<your event hub path>`, and the `<your event hub Sas key>` with the strings you saved off to your text file.
+1. 找到用于分配服务连接字符串的代码行
 
-1. Save the **Program.cs** file.
+    ```csharp
+    private readonly static string s_serviceConnectionString = "<your service connection string>";
+    ```
 
-## Test your Code to Receive Telemetry
+1. 将 `<your service connection string>` 替换为你之前在本实验室中保存的 IoT 中心 **iothubowner** 共享访问策略主要连接字符串。
 
-This test is important, checking whether your back-end app is picking up the telemetry being sent out by your simulated device. Remember your device app is still running, and sending telemetry.
+    你应该已经保存了练习 1 期间 lab15-setup.azcli 设置脚本生成的输出。
 
-1. To run the app in the terminal, enter the following command:
+    > **注释**：你可能会好奇为什么使用 **iothubowner** 共享策略而不是使用 **服务** 共享策略。答案与分配给每个策略的 IoT 中心权限有关。**服务**策略具有 **ServiceConnect** 权限，通常由后端云服务使用。它具有以下权利：
+    >
+    > * 授予对面向云服务的通信和监视终结点的访问权限。
+    > * 授予接收设备到云消息、发送云到设备消息和检索相应传送确认的权限。
+    > * 授予检索文件上传的传送确认的权限。
+    > * 授予访问孪生以更新标记和所需属性、检索报告属性和运行查询的权限。
+    >
+    > 在实验室的第一部分中， **serviceoperator** 应用程序调用直接方法来切换风扇状态，**服务** 策略具有足够的权限。但在实验室的后半部分，将查询设备注册表。这是通过 `RegistryManager` 类实现的。为了使用 `RegistryManager` 类查询设备注册表，用于连接到 IoT 中心的共享访问策略必须具有**注册表读取**权限，并授予了以下权限：
+    >
+    > * 授予对标识注册表的读取访问权限。
+    >
+    > 由于 **iothubowner** 策略已被授予 **注册表写入** 权限，同时它还继承了 **注册表读取** 权限，因此它适合我们的需要。
+    >
+    > 在生产方案中，你可以考虑添加一个新的仅具有 **服务连接** 和 **注册读取** 权限的共享访问策略。
+
+1. 将 `<your event hub endpoint>`、`<your event hub path>` 和 `<your event hub Sas key>` 替换为你更早时在本实验室保存的值。
+
+1. 在 **“文件”** 菜单，将你的更改保存到 Program.cs 文件，单击 **“保存”**。
+
+#### 任务 3：测试你的代码以接收遥测
+
+此测试非常重要，请检查你的后端应用是否正在接收由模拟设备发出的遥测。记住你的设备应用仍在运行，并且正在发送遥测。
+
+1. 要在终端中运行 `cheesecaveoperator` 后端应用，请打开“终端”窗格，然后输入以下命令：
 
     ```bash
     dotnet run
     ```
 
-   This command will run the **Program.cs** file in the current folder.
+   此命令将在当前文件夹中运行 **“Program.cs”** 文件。
 
-   > [!NOTE] You can ignore the warning about the unused variable `s_serviceConnectionString` - we will be using that variable shortly.
+   > **注释**： 你可以忽略有关未使用的变量 `s_serviceConnectionString` 的警告 - 我们将很快使用该变量。
 
-1. You should quickly see console output, and immediately respond if it successfully connects to IoT Hub. If not, carefully check your IoT Hub service connection string, noting that this string should be the service connection string, and not any other.:
+1. 花一分钟时间观察到终端的输出。
 
-    ![Console Output](../../Linked_Image_Files/M99-L15-cheesecave-telemetry-received.png)
+    你应该快速看到控制台输出，如果该应用成功连接到 IoT 中心，该应用将几乎立即显示遥测消息数据。
 
-    > [!NOTE] Green text is used to show things are working as they should and red text when bad stuff is happening. If you don't get a screen similar to this image, start by checking your device connection string.
+    如果不是，请仔细检查你的 IoT 中心服务连接字符串，注意该字符串应该是服务连接字符串，而不是其他任何字符串：
 
-1. Watch the telemetry for a short while, checking that it is giving vibrations in the expected ranges.
+    ![控制台输出](./Media/LAB_AK_15-cheesecave-telemetry-received.png)
 
-1. You can leave this app running, as it's needed for the next section.
+    > **注释**：  绿色文本表示一切正常，红色文本表示存在异常。如果没有得到类似于此图片显示的屏幕，请先检查设备连接字符串。
 
-1. Visually compare the telemetry sent and received. Is there an exact match? Is there much of a delay? If it looks good, close both the console windows for now.
+1. 让此应用运行更长的时间。
 
-Completing this unit is great progress. you've an app sending telemetry from a device, and a back-end app acknowledging receipt of the data. This unit covers the monitoring side of our scenario. The next step handles the control side - what to do when issues arise with the data. Clearly, there are issues, we're getting temperature and humidity alerts!
+1. 在两个应用都运行的情况下，直观地比较正在发送的遥测与正在接收的遥测。
 
+    * 是否有确切的数据匹配？
+    * 从发送数据到接收数据之间是否有很大的延迟？
 
+    如果满意，请停止正在运行的应用，然后在两个 VS Code 实例中关闭“终端”窗格。否，不要关闭 “Visual Studio Code” 窗口。
 
+    你现在有一个应用从设备发送遥测数据，还有一个后端应用确认收到数据。本单元将介绍方案的监视部分。下一步是处理控制端 - 数据出现问题时该怎么办。显然有一些问题，我们将收到温度和湿度警报！
 
-## Exercise 3: Write Code to Invoke a Direct Method
+### 练习 4：编写代码以调用直接方法
 
-In this unit, we'll add code to the device app for a direct method to turn on the fan. Next, we add code to the back-end service app to invoke this direct method.
+在本练习中，将通过添加直接方法的代码来更新设备应用，该方法将模拟在奶酪储藏室中打开风扇。接下来，将代码添加到后端服务应用以调用此直接方法。
 
-Calls from the back-end app to invoke direct methods can include multiple parameters as part of the payload. Direct methods are typically used to turn features of the device off and on, or specify settings for the device.
+后端应用中调用直接方法的调用可以包含多个参数作为有效负载的一部分。直接方法通常用于打开和关闭设备的功能，或指定设备的设置。
 
-**Handle Error Conditions**
+#### 处理错误条件
 
-There are several error conditions that need to be checked for when a device receives instructions to run a direct method. One of these checks is simply to respond with an error if the fan is in a failed state. Another error condition to report is when an invalid parameter is received. Clear error reporting is important, given the potential remoteness of the device.
+当设备收到运行直接方法的指令时，需要检查几种错误情况。其中一种检查是在风扇处于故障状态时响应错误。另一个要报告的错误条件是接收到无效参数之时。考虑到设备的潜在远程性，清晰的错误报告至关重要。
 
-**Invoke a Direct Method**
+#### 调用直接方法
 
-Direct methods require that the back-end app prepares the parameters, then makes a call specifying a single device to invoke the method. The back-end app will then wait for, and report, a response.
+直接方法要求后端应用准备参数，然后进行调用以指定单个设备来调用该方法。然后，后端应用将等待并报告响应。
 
-The device app contains the functional code for the direct method. The function name is registered with the IoT client for the device. This process ensures the client knows what function to run when the call comes from the IoT Hub (there could be many direct methods).
+设备应用包含直接方法的功能代码。函数名称已在设备的 IoT 客户端中注册。此过程可确保客户端从 IoT 中心调用时知道要运行的函数（可能有许多直接方法）。
 
-## Add Code to Define a Direct Method in the Device App
+#### 任务 1：添加代码以在设备应用中定义直接方法
 
-1. Return to the Visual Studio Code instance that is running the **cheesecavedevice** app.
+1. 返回运行 **cheesecavedevice** 应用的 Visual Studio Code 实例。
 
-1. If the app is still running, place input focus on the terminal and press **CTRL+C** to exit the app.
+    > **注释**：如果应用仍在运行，请将输入重点放在“终端”窗格中，然后按 **“CTRL+C”** 退出应用。
 
-1. In the editor, ensure **Program.cs** is open.
+1. 确保 **Program.cs** 在代码编辑器中打开。
 
-1. To define the direct method, add the following code at the end of the **SimulatedDevice** class:
+1. 在“代码编辑器”窗格中，找到 **“模拟设备”** 类别的底部。
+
+1. 要定义直接方法，请在 **SimulatedDevice** 类的右大括号 (`}`) 中添加以下代码：
 
     ```csharp
-    // Handle the direct method call
+    // 处理直接方法调用
     private static Task<MethodResponse> SetFanState(MethodRequest methodRequest, object userContext)
     {
         if (fanState == stateEnum.failed)
         {
-            // Acknowledge the direct method call with a 400 error message.
+            // 通过 400 错误消息确认直接方法调用结果。
             string result = "{\"result\":\"Fan failed\"}";
             redMessage("Direct method failed: " + result);
             return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
@@ -604,20 +728,20 @@ The device app contains the functional code for the direct method. The function 
             {
                 var data = Encoding.UTF8.GetString(methodRequest.Data);
 
-                // Remove quotes from data.
+                // 从数据中删除引号。
                 data = data.Replace("\"", "");
 
                 // Parse the payload, and trigger an exception if it's not valid.
                 fanState = (stateEnum)Enum.Parse(typeof(stateEnum), data);
                 greenMessage("Fan set to: " + data);
 
-                // Acknowledge the direct method call with a 200 success message.
+                // 通过 200 成功消息确认直接方法调用结果。
                 string result = "{\"result\":\"Executed direct method: " + methodRequest.Name + "\"}";
                 return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 200));
             }
             catch
             {
-                // Acknowledge the direct method call with a 400 error message.
+                // 通过 400 错误消息确认直接方法调用结果。
                 string result = "{\"result\":\"Invalid parameter\"}";
                 redMessage("Direct method failed: " + result);
                 return Task.FromResult(new MethodResponse(Encoding.UTF8.GetBytes(result), 400));
@@ -626,26 +750,30 @@ The device app contains the functional code for the direct method. The function 
     }
     ```
 
-    > [!NOTE] This code defines the implementation of the direct method and is executed when the direct method is invoked. The fan has three states: *on*, *off*, and *failed*. The method above sets the fan to either of the first two of these states. If the payload text doesn't match one of these two, or the fan is in a failed state, an error is returned.
+    > **注释**：  该代码定义了直接方法的实现，并在调用直接方法时执行。风扇具有以下三种状态：*“开启”*、*“关闭”* 和 *“故障”*.以上方法将风扇设置为 *“开启”* 或 *“关闭”*。如果有效负载文本与这两个设置之一不匹配，或者风扇处于“故障”状态，则返回错误。
 
-1. To register the direct method, add the following lines of code to the Main method, after creating the device client.
+1. 在“代码编辑器”窗格中，稍微向上滚动以找到 **“主要”** 方法。
+
+1. 在 **“主要”** 方法中，在创建设备客户端之后将光标定位在空白代码行上。
+
+1. 要注册直接方法，请添加以下代码：
 
     ```csharp
-    // Create a handler for the direct method call
+    // 为直接方法调用创建处理程序
     s_deviceClient.SetMethodHandlerAsync("SetFanState", SetFanState, null).Wait();
     ```
 
-    The modified **Main** method should look like:
+    添加代码后，**Main** 方法应如下所示：
 
     ```csharp
     private static void Main(string[] args)
     {
         colorMessage("Cheese Cave device app.\n", ConsoleColor.Yellow);
 
-        // Connect to the IoT hub using the MQTT protocol.
+        // 使用 MQTT 协议连接到 IoT 中心。
         s_deviceClient = DeviceClient.CreateFromConnectionString(s_deviceConnectionString, TransportType.Mqtt);
 
-        // Create a handler for the direct method call
+        // 为直接方法调用创建处理程序
         s_deviceClient.SetMethodHandlerAsync("SetFanState", SetFanState, null).Wait();
 
         SendDeviceToCloudMessagesAsync();
@@ -653,28 +781,30 @@ The device app contains the functional code for the direct method. The function 
     }
     ```
 
-1. Save the **Program.cs** file.
+1. 在 **“文件”** 菜单中，单击 **“保存”**，保存 Program.cs 文件。
 
-You've completed what is needed at the device end of things. Next, we need to add code to the back-end service.
+现在即已经完成了设备端所需的编码。接下来，需要将代码添加到将调用直接方法的后端服务中。
 
-## Add Code to Call a Direct Method in the Back End App
+#### 任务 2：添加代码以调用直接方法
 
-1. Return to the Visual Studio Code instance that is running the **cheesecaveoperator** app.
+1. 返回到正在运行 **cheesecaveoperator** 应用的 Visual Studio Code 实例。
 
-1. If the app is still running, place input focus on the terminal and press **CTRL+C** to exit the app.
+    > **注释**：如果应用仍在运行，请将输入重点放在“终端”窗格中，然后按 **“CTRL+C”** 退出应用。
 
-1. In the editor, ensure **Program.cs** is open.
+1. 确保 **Program.cs** 在代码编辑器中打开。
 
-1. Add the following line to the global variables at the top of the **ReadDeviceToCloudMessages** class:
+1. 在 **ReadDeviceToCloudMessages** 类顶部，将以下代码添加到全局变量列表中：
 
     ```csharp
     private static ServiceClient s_serviceClient;
     ```
 
-1. Add the following task to the **ReadDeviceToCloudMessages** class, after the **Main** method:
+1. 向下滚动，找到 **Main** 方法。
+
+1. 在 **Main** 方法下的空白代码行上，添加以下任务：
 
     ```csharp
-    // Handle invoking a direct method.
+    // 处理调用直接方法。
     private static async Task InvokeMethod()
     {
         try
@@ -684,7 +814,7 @@ You've completed what is needed at the device end of things. Next, we need to ad
 
             methodInvocation.SetPayloadJson(payload);
 
-            // Invoke the direct method asynchronously and get the response from the simulated device.
+            // 异步调用直接方法，并从模拟设备获取响应。
             var response = await s_serviceClient.InvokeDeviceMethodAsync("CheeseCaveID", methodInvocation);
 
             if (response.Status == 200)
@@ -703,71 +833,79 @@ You've completed what is needed at the device end of things. Next, we need to ad
     }
     ```
 
-    > [!NOTE] This code is used to invoke the **SetFanState** direct method on the device app.
+    > **注释**：此代码用于调用设备应用上的 **SetFanState** 直接方法。
 
-1. Add the following code to the **Main** method, before creating the receivers to listen for messages:
+1. 在 **“主要”** 方法中，将光标放在 `创建接收方以侦听消息` 注释上方的空白代码行上。
+
+1. 在用于创建接收方以侦听消息的代码之前，添加以下代码：
 
     ```csharp
-    // Create a ServiceClient to communicate with service-facing endpoint on your hub.
+    // 创建 ServiceClient 与中心上面向服务的终结点进行通信。
     s_serviceClient = ServiceClient.CreateFromConnectionString(s_serviceConnectionString);
     InvokeMethod().GetAwaiter().GetResult();
     ```
 
-    > [!NOTE] This code creates the client we used to connect to the IoT Hub so we can invoke the direct method on the device.
+    > **注释**：此代码会创建用来连接到 IoT 中心的 ServiceClient 对象。与 IoT 中心的连接使我们能够在设备上调用直接方法。
 
-1. Save the **Program.cs** file.
+1. 在 **“文件”** 菜单中，单击 **“保存”**，保存 Program.cs 文件。
 
-You have now completed the code changes to support the **SetFanState** direct method.
+现在已经完成了代码更改，以支持 **SetFanState** 直接方法。
 
-## Test the direct method
+#### 任务 3：测试直接方法
 
-To test the method, start the apps in the correct order. We can't invoke a direct method that hasn't been registered!
+若要测试直接方法，需要以正确的顺序启动应用。你不能调用尚未注册的直接方法！
 
-1. Start the **cheesecavedevice** device app. It will begin writing to the terminal, and telemetry will appear.
+1. 启动 **“奶酪储藏室设备”** 设备应用。
 
-1. Start the **cheesecaveoperator** back-end app. This app immediately calls the direct method. Do you notice it's handled by the back-end app, with output similar to the following?
+    它将开始写入终端，并且将出现遥测数据。
 
-    > [!NOTE] If you see the message `Direct method failed: timed-out` then double check you have saved the changes in the **cheesecavedevice** and started the app.
+1. 启动 **cheesecaveoperator** 后端应用。
 
-    ![Console Output](../../Linked_Image_Files/M99-L15-cheesecave-direct-method-sent.png)
+    > **注释**：  如果看到 `Direct method failed: timed-out` 消息，请仔细检查是否已将更改保存在 **cheesecavedevice** 中并启动了该应用。
 
-1. Now check the console output for the **cheesecavedevice** device app, you should see that the fan has been turned on.
+    cheesecaveoperator 后端应用将立即调用直接方法。
 
-   ![Console Output](../../Linked_Image_Files/M99-L15-cheesecave-direct-method-received.png)
+    注意输出类似于以下内容：
 
-You are now successfully monitoring and controlling a remote device. We have turned on the fan, which will slowly move the environment in the cave to our initial desired settings. However, we might like to remotely specify those desired settings. We could specify desired settings with a direct method (which is a valid approach). Or we could use another feature of IoT Hub, called device twins. Let's look into the technology of device twins.
+    ![控制台输出](./Media/LAB_AK_15-cheesecave-direct-method-sent.png)
 
+1. 现在检查 **cheesecavedevice** 设备应用的控制台输出，你会看到风扇已打开。
 
+   ![控制台输出](./Media/LAB_AK_15-cheesecave-direct-method-received.png)
 
+现在已成功监视和控制远程设备。已在设备上实现了可从云中调用的直接方法。在我们的方案中，直接方法用于打开风扇，这将使储藏室中的环境达到我们所需的设置。
 
+如果希望远程指定奶酪储藏室环境的所需设置，该怎么办？也许你想在老化过程中的某个时刻为奶酪储藏室设置特定的目标温度。可以使用直接方法（这是一种有效方法）指定所需的设置，也可以使用 IoT 中心的另一个功能，称为设备孪生。在下一个练习中，你将在解决方案中实现设备孪生属性。
 
-## Exercise 4: Write Code for Device Twins
+### 练习 5：为设备孪生写入代码
 
-In this exercise, we'll add some code to both the device app and back-end service app, to show device twin synchronization in operation.
+在本练习中，我们将向设备应用和后端服务应用添加一些代码，以显示运行中的设备孪生同步。
 
-As a reminder, a device twin contains four types of information:
+提醒一下，一对设备孪生包含四种类型的信息：
 
-* **Tags**: information on the device that isn't visible to the device.
-* **Desired properties**: the desired settings specified by the back-end app.
-* **Reported properties**: the reported values of the settings on the device.
-* **Device identity properties**: read-only information identifying the device.
+* **标签**：设备上不可见的设备信息。
+* **所需属性**：后端应用指定的所需设置。
+* **报告的属性**：设备上报告的设置值。
+* **设备标识属性**：标识设备的只读信息。
 
-Device twins are designed for querying, and automatically synchronizing, with the real IoT Hub device. The device twin can be queried, at any time, by the back-end app. This query can return the current state information for the device. Getting this data doesn't involve a call to the device, as the device and twin will have synchronized automatically. Much of the functionality of device twins is provided by Azure IoT, so not much code needs to be written to make use of them.
+通过 IoT 中心管理的设备孪生专为查询而设计，并且它们与真实的 IoT 设备同步。可以随时通过后端应用查询设备孪生。该查询可以返回设备的当前状态信息。获取此数据不涉及对设备的调用，因为设备和孪生将同步。设备孪生的许多功能由 Azure IoT 中心提供，因此无需编写太多代码即可使用它们。
 
-There is some overlap between the functionality of device twins and direct methods. We could set desired properties using direct methods, which might seem an intuitive way of doing things. However, using direct methods would require the back-end app to record those settings explicitly, if they ever needed to be accessed. Using device twins, this information is stored and maintained by default.
+孪生设备的功能和直接方法之间存在一些重叠。我们可以使用直接方法设置设备属性，这似乎是一种直观的处理方式。但是，如果需要访问直接设置，则使用直接方法将要求后端应用明确记录这些设置。使用设备孪生，默认情况下会存储和维护此信息。
 
-## Add Code To Use Device Twins To Synchronize Device Properties
+#### 任务 1：添加代码以使用设备孪生同步设备属性
 
-1. Return to the Visual Studio Code instance that is running the **cheesecaveoperator** app.
+1. 返回到正在运行 **cheesecaveoperator** 后端应用的 Visual Studio Code 实例。
 
-1. If the app is still running, place input focus on the terminal and press **CTRL+C** to exit the app.
+1. 如果应用仍在运行，请将输入焦点放在终端上，然后按 **Ctrl+C** 退出应用。
 
-1. In the editor, ensure **Program.cs** is open.
+1. 确保 **Program.cs** 打开。
 
-1. Add the following code to the end of the **ReadDeviceToCloudMessages** class:
+1. 在“代码编辑器”窗格中，定位到 **ReadDeviceToCloudMessages** 类的底部。
+
+1. 在 **ReadDeviceToCloudMessages** 类的右大括号上方，添加以下代码：
 
     ```csharp
-    // Device twins section.
+    // 设备孪生部分。
     private static RegistryManager registryManager;
 
     private static async Task SetTwinProperties()
@@ -798,29 +936,35 @@ There is some overlap between the functionality of device twins and direct metho
     }
     ```
 
-    > [!NOTE] The **SetTwinProperties** method creates a piece of JSON that defines tags and properties that will be added to the device twin, and then updates thew twin. The next part of the method demonstrates how a query can be performed to list the devices where the **cellar** tag is set to "Cellar1".
+    > **注释**： **SetTwinProperties** 方法创建一段 JSON，用于定义将添加到设备孪生的标记和属性，然后更新孪生。该方法的下一部分演示如何执行查询以列出 **cellar** 标记设置为 “Cellar1” 的设备。此查询要求连接具有 **“注册表读取”** 权限。
 
-1. Now, add the following lines to the **Main** method, before the lines creating a service client.
+1. 在“代码编辑器”窗格中，向上滚动以找到 **Main** 方法。
+
+1. 在 **Main** 方法中，定位到创建服务客户端的代码行。
+
+1. 在创建服务客户端的代码之前，添加以下代码：
 
     ```csharp
-    // A registry manager is used to access the digital twins.
+    // 注册表管理器用于访问数字孪生。
     registryManager = RegistryManager.CreateFromConnectionString(s_serviceConnectionString);
     SetTwinProperties().Wait();
     ```
 
-    > [!NOTE] Read the comments in this section of code.
+    > **注释**：阅读 Main 方法中包含的注释。
 
-1. Save the **Program.cs** file.
+1. 在 **“文件”** 菜单中，单击 **“保存”**，保存 Program.cs 文件。
 
-## Add Code to Synchronize Device Twin Settings for the Device
+#### 任务 2：添加代码以同步设备的设备孪生设置
 
-1. Return to the Visual Studio Code instance that is running the **cheesecavedevice** app.
+1. 返回运行 **cheesecavedevice** 应用的 Visual Studio Code 实例。
 
-1. If the app is still running, place input focus on the terminal and press **CTRL+C** to exit the app.
+1. 如果应用仍在运行，请将输入焦点放在终端上，然后按 **Ctrl+C** 退出应用。
 
-1. In the editor, ensure **Program.cs** is open.
+1. 确保 **Program.cs** 文件在“代码编辑器”窗格中打开。
 
-1. Add the following code at the end of the **SimulatedDevice** class:
+1. 在“代码编辑器”窗格中，向下滚动以定位到 **SimulatedDevice** 类的末尾。
+
+1. 在 **SimulatedDevice** 类的右大括号内，添加以下代码：
 
     ```csharp
     private static async Task OnDesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
@@ -832,7 +976,7 @@ There is some overlap between the functionality of device twins and direct metho
             greenMessage("Setting desired humidity to " + desiredProperties["humidity"]);
             greenMessage("Setting desired temperature to " + desiredProperties["temperature"]);
 
-            // Report the properties back to the IoT Hub.
+            // 将属性报告回 IoT 中心。
             var reportedProperties = new TwinCollection();
             reportedProperties["fanstate"] = fanState.ToString();
             reportedProperties["humidity"] = desiredHumidity;
@@ -848,9 +992,15 @@ There is some overlap between the functionality of device twins and direct metho
     }
     ```
 
-    > [!NOTE] This code defines handler invoked when a desired property changes in the device twin. Notice that new values are then reported back to the IoT Hub to confirm the change.
+    > **注释**：此代码定义在设备孪生中所需属性更改时调用的处理程序。请注意，然后将新值报告回 IoT 中心以确认更改。
 
-1. To register the desired property changed handler, add the following lines after the statements creating a handler for the direct method:
+1. 在“代码编辑器”窗格中，向上滚动到 **“主要”** 方法。
+
+1. 在 **“主要”** 方法中，找到为直接方法创建处理程序的代码。
+
+1. 将光标放在直接方法的处理程序下方的空白行上。
+
+1. 要注册所需属性更改处理程序，请添加以下代码：
 
     ```csharp
     // Get the device twin to report the initial desired properties.
@@ -861,26 +1011,26 @@ There is some overlap between the functionality of device twins and direct metho
     s_deviceClient.SetDesiredPropertyUpdateCallbackAsync(OnDesiredPropertyChanged, null).Wait();
     ```
 
-1. Save the **Program.cs** file.
+1. 在 **“文件”** 菜单中，单击 **“保存”**，保存 Program.cs 文件。
 
-> [!NOTE] Now you have added device twins to your app, you can reconsider having explicit variables such as **desiredHumidity**. Instead, you can use the variables in the device twin object.
+    > **注释**：  现在，你已经在应用中添加了对设备孪生的支持，可以重新考虑使用显式变量，例如 **desiredHumidity**。你可以改用设备孪生对象中的变量。
 
-## Test the Device Twins
+#### 任务 3：测试设备孪生
 
-To test the method, start the apps in the correct order. 
+要测试该方法，请以正确的顺序启动应用。
 
-1. Start the **cheesecavedevice** device app. It will begin writing to the terminal, and telemetry will appear.
+1. 启动 **“奶酪储藏室设备”** 设备应用。它将开始写入终端，并且将出现遥测数据。
 
-1. Start the **cheesecaveoperator** back-end app. 
+1. 启动 **cheesecaveoperator** 后端应用。
 
-1. Now check the console output for the **cheesecavedevice** device app, confirming the device twin synchronized correctly.
+1. 检查控制台输出中的 **“奶酪储藏室设备”** 设备应用，并确认设备孪生已正确同步。
 
-    ![Console Output](../../Linked_Image_Files/M99-L15-cheesecave-device-twin-received.png)
+    ![控制台输出](./Media/LAB_AK_15-cheesecave-device-twin-received.png)
 
-1. If we let the fan do its work, we should eventually get rid of those red alerts!
+    如果我们让风扇正常工作，我们最终应该消除那些红色警报！
 
-    ![Console Output](../../Linked_Image_Files/M99-L15-cheesecave-device-twin-success.png)
+    ![控制台输出](./Media/LAB_AK_15-cheesecave-device-twin-success.png)
 
-The code given in this module isn't industrial quality. It does show how to use direct methods, and device twins. However, the messages are sent only when the back-end service app is first run. Typically, a back-end service app would require a browser interface, for an operator to send direct methods, or set device twin properties, when required.
+1. 对于这两个 Visual Studio Code 实例，请停止应用，然后关闭 “Visual Studio Code” 窗口。
 
-> [!NOTE] Before you go, don't forget to close both instances of Visual Studio Code - this will exit the apps if they are still running.
+此模块中提供的代码不是工业质量。它确实显示了如何使用直接方法和设备孪生。但是，仅在首次运行后端服务应用时发送消息。通常，后端服务应用需要浏览器界面，以便操作员在需要时发送直接方法或设置设备孪生属性。
