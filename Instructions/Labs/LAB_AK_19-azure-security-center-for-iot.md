@@ -306,13 +306,13 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     > **重要事项**：模块标识名称必须是 **“azureiotsecurity”**，不能还是唯一名称。
 
-    ![Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-module-identity.png)
+![Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-module-identity.png)
 
 1. 在 **“vm-device01”** 边栏选项卡，在 **“主键”** 右边，单击 **“复制”**。
 
     > **注释**：确保复制设备的 **“主键”** 而不是连接字符串。
 
-    ![Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-primary-key.png)
+![Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-primary-key.png)
 
 1. 回到 IoT 中心边栏选项卡。
 
@@ -499,7 +499,7 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
 1. 在 **“模块标识”** 下，请注意 **“azureiotsecurity”** 模块的当前状态未 **“已连接”**。
 
-    ![连接的 Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-device-connected-agent.png)
+![连接的 Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-device-connected-agent.png)
 
 现在，设备上已安装了适用于 IoT 的 Azure 安全中心设备代理，这些代理将能够从设备收集、聚合和分析原始安全事件。
 
@@ -550,7 +550,7 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     你将看到两个图表上显示的设备、中心和其他资源的运行状况概述。你可以看到在打开 Azure IoT 安全中心时立即启用的内置实时监视、建议和警报。
 
-    ![Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-security-dashboard.png)
+![Azure IoT 安全模块的屏幕截图](media/LAB_AK_19-security-dashboard.png)
 
 1. 在左侧导航菜单中的 **“安全性”** 下，单击 **“资源”**。
 
@@ -561,7 +561,7 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     下图显示了执行安全评估后的仪表板状态。
 
-    ![更新后的 Azure IoT 安全性模块的屏幕截图](media/LAB_AK_19-updated-security-dashboard.png)
+![更新后的 Azure IoT 安全性模块的屏幕截图](media/LAB_AK_19-updated-security-dashboard.png)
 
 ### 练习 7：引入自定义警报
 
@@ -634,7 +634,7 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     你将返回到自定义警报列表。下图显示了一些自定义警报：
 
-    ![许多自定义警报](media/LAB_AK_19-many-custom-alerts.png)
+![许多自定义警报](media/LAB_AK_19-many-custom-alerts.png)
 
 ### 练习 8：配置设备应用
 
@@ -842,11 +842,11 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     查看 **“威胁检测”** 部分。你应该看到一个或多个警报显示在 **“设备安全警报”** 图表中：
 
-    ![设备安全警报图](media/LAB_AK_19-device-security-alert-chart.png)
+![设备安全警报图](media/LAB_AK_19-device-security-alert-chart.png)
 
     你还应该在 **“警报最多的设备”** 磁贴中看到 **“CheeseCave1-Sensor1”** 设备的条目：
 
-    ![警报磁贴最多的设备](media/LAB_AK_19-devices-with-most-alerts-tile.png)
+![警报磁贴最多的设备](media/LAB_AK_19-devices-with-most-alerts-tile.png)
 
     > [!NOTE]
     > 可能需要 10 到 15 分钟仪表板才能显示警报。
@@ -857,7 +857,7 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     你将看到一个安全警报列表：
 
-    ![安全警报列表](media/LAB_AK_19-security-alert-list.png)
+![安全警报列表](media/LAB_AK_19-security-alert-list.png)
 
     最新警报将标有 **“新”** 标签。
 
@@ -865,7 +865,7 @@ Contoso 还正在安装新连接的恒温器，以提高对不同奶酪储藏室
 
     将打开一个详细信息窗格。**“一般信息”** 提供有关警报的高级信息。在其下方， **“最近 10 个受影响的设备”** 应该列出 **“CheeseCave1-Sensor1”** 设备。
 
-    ![“自定义警报详细信息”窗格](media/LAB_AK_19-custom-alert-details-pane.png)
+![“自定义警报详细信息”窗格](media/LAB_AK_19-custom-alert-details-pane.png)
 
 1. 返回到 Visual Studio Code 并退出设备应用。
 

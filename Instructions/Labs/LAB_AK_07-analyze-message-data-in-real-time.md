@@ -612,7 +612,7 @@ loggingMessage.Properties.Add("sensorID", "VSLog");
 
 #### 任务 1：将日志消息路由到 Azure 存储
 
-1. 在 [Azure 门户](https://portal.azure.com/)中，确保 IoT 中心的**“概述”**已打开。
+1. 在 [Azure 门户](https://portal.azure.com/)中，确保 IoT 中心的 **“概述”** 已打开。
 
 1. 在左侧菜单上的 **“消息传递”** 下，单击 **“消息路由”**。
 

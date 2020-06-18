@@ -96,23 +96,23 @@ Power BI 可用作个人数据分析和可视化工具，也可用作小组项�
 
 1. 如果看到一条要求证明你不是机器人的消息，请选择 **“给我发短信”** 或者 **“给我打电话”**，并提供相关信息以接收验证码，然后继续下一步操作。
 
-    ![你是机器人吗](./Media/LAB_AK_08-prove-robot.png)
+![你是机器人吗](./Media/LAB_AK_08-prove-robot.png)
 
     相反，如果系统提示你已有帐户，请继续登录并准备使用 PowerBI。
 
-    ![你是机器人吗](./Media/LAB_AK_08-existing-account.png)
+![你是机器人吗](./Media/LAB_AK_08-existing-account.png)
 
 1. 检查手机短信或等着被呼叫，然后输入收到的验证码，最后单击 **“注册”**。
 
-    ![注册](./Media/LAB_AK_08-sign-up.png)
+![注册](./Media/LAB_AK_08-sign-up.png)
 
 1. 检查电子邮件中是否有类似这样的消息。
 
-    ![注册](./Media/LAB_AK_08-email-verification.png)
+![注册](./Media/LAB_AK_08-email-verification.png)
 
 1. 在下一屏中，输入个人信息和电子邮件中的验证码。选择一个区域，查看与该屏幕链接的策略，然后选择“开始”。
 
-    ![注册](./Media/LAB_AK_08-create-account.png)
+![注册](./Media/LAB_AK_08-create-account.png)
 
 1. 然后你将前往 [“Power BI 登录页”](https://powerbi.microsoft.com/landing/signin/)，从这里开始使用 Power BI。
 
@@ -156,7 +156,7 @@ Power BI 可用作个人数据分析和可视化工具，也可用作小组项�
 
 1. 你应该很快就能看到控制台输出，类似于：
 
-    ![控制台输出](./Media/LAB_AK_08-vibration-telemetry.png)
+![控制台输出](./Media/LAB_AK_08-vibration-telemetry.png)
 
     > **注释**：  绿色文本表示一切正常，红色文本表示存在异常。如果没有得到类似于此图片显示的屏幕，请先检查设备连接字符串。
 
