@@ -299,7 +299,7 @@ Azure 逻辑应用是一种云服务，可在需要跨企业或组织集成应�
 
     完成此步骤后，你会看到类似于以下内容的消息正文：
 
-![填写电子邮件信息](./Media//LAB_AK_09-email_content.png)
+![填写电子邮件信息](Media//LAB_AK_09-email_content.png)
 
 1. 要将所有更改保存到逻辑应用工作流，单击设计器顶部的 **“保存”**。
 
@@ -399,6 +399,6 @@ Azure IoT 中心与 Azure 事件网格集成在一起，因此你可以将事件
 
     如果总共添加了四个示例，则 IoT 设备列表应如下图所示：
 
-![IoT 中心设备列表](./Media/LAB_AK_09-iot-hub-device-list.png)
+![IoT 中心设备列表](Media/LAB_AK_09-iot-hub-device-list.png)
 
 1. 在将一些设备添加到 IoT 中心后，检查你的电子邮件，查看哪些设备触发了逻辑应用。
