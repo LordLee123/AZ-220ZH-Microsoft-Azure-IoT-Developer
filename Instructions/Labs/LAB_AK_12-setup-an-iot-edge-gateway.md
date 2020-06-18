@@ -318,9 +318,9 @@ lab:
     该脚本创建了多个证书和密钥文件。记下稍后将引用的以下文件：
 
     ```text
-    ＃设备 CA 证书
+    # 设备 CA 证书
     ~/lab12/certs/iot-edge-device-ca-MyEdgeDeviceCA-full-chain.cert.pem
-    ＃设备 CA 私钥
+    # 设备 CA 私钥
     ~/lab12/private/iot-edge-device-ca-MyEdgeDeviceCA.key.pem
     ```
 

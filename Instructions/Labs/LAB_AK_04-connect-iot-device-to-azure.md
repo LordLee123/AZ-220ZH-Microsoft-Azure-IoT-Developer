@@ -68,7 +68,7 @@ Contoso 已决定启动使用 IoT 设备监控温度和湿度的自动化系统�
 
     lab04-setup.azcli 脚本文件位于实验室 4 的 Setup 文件夹中。
 
-1. 选择 **“lab04-setup.azcli”**文件，然后单击 **“打开”**。
+1. 选择 **“lab04-setup.azcli”** 文件，然后单击 **“打开”**。
 
     文件上传完成后，将显示一条通知。
 
@@ -341,7 +341,7 @@ Contoso 已决定启动使用 IoT 设备监控温度和湿度的自动化系统�
     az iot hub monitor-events --hub-name {IoTHubName} --device-id SimulatedDevice1
     ```
 
-    _务必将 IoTHubName** 占位符替换为 Azure IoT 中心的名称。_
+    _务必将 **{IoTHubName}** 占位符替换为 Azure IoT 中心的名称。_
 
     > **注意**：  在运行 Azure CLI 命令时，如果收到消息指出_需要更新 IoT 扩展版本依赖项_，则按 `y` 键接受更新，然后按 `Enter` 键。这将使命令按预期继续执行。
 

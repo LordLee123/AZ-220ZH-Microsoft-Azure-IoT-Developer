@@ -15,7 +15,7 @@
 | Python 3.7| https://www.python.org/downloads/release/python-370/ |
 | Docker Desktop 社区版 2.1.0.5（或更高版本）| https://docs.docker.com/docker-for-windows/install/ |
 | .NET Core 3 SDK（当前/最新版本）| https://dotnet.microsoft.com/download |
-| Power BI Desktop（当前/最新版本） | https://powerbi.microsoft.com/en-us/desktop/ |
+| Power BI Desktop（当前/最新版本） | https://powerbi.microsoft.com/zh-cn/desktop/ |
 
  
 

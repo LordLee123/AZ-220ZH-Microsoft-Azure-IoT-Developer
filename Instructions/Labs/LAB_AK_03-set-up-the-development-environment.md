@@ -150,7 +150,7 @@ Azure CLI 2.2 是一种命令行工具，旨在简化 Azure 相关任务的脚�
 
 1. 在适用于 Windows 的 Docker 桌面下，单击 **“获取适用于 Windows 的 Docker 桌面（稳定）”**。
 
-1. 要开始安装，请单击“运行”**。
+1. 要开始安装，请单击 **“运行”**。
 
     可能需要一段时间才能显示 Docker Desktop 的安装对话框。
 
@@ -229,7 +229,7 @@ Visual Studio Code 和 Azure CLI 工具均支持扩展，可帮助开发人员�
 
 Microsoft 已经创建了一个 GitHub 存储库来提供对实验室资源文件的访问权限。在某些情况下，需要将这些文件放在本地开发环境，而在许多其他情况下，这样很方便。在此任务中，你将在开发环境中下载并提取存储库的内容。
 
-1. 在你的 Web 浏览器中，导航到以下位置：[https://github.com/MicrosoftLearning/AZ-220-Microsoft-Azure-IoT-Developer](https://github.com/MicrosoftLearning/AZ-220-Microsoft-Azure-IoT-Developer)
+1. 在你的 Web 浏览器中，导航到以下位置：[https://github.com/MicrosoftLearning/AZ-220ZH-Microsoft-Azure-IoT-Developer](https://github.com/MicrosoftLearning/AZ-220ZH-Microsoft-Azure-IoT-Developer)
 
 1. 在页面右侧，单击 **“克隆或下载”**，然后单击 **“下载 ZIP”**。
 
@@ -237,7 +237,7 @@ Microsoft 已经创建了一个 GitHub 存储库来提供对实验室资源文�
 
 1. 保存文件后，单击 **“打开文件夹”**。
 
-1. 右键单击保存的 ZIP 文件，然后单击“提取所有”**
+1. 右键单击保存的 ZIP 文件，然后单击 **“提取所有”**
 
 1. 请单击 **“浏览”**，然后导航到方便访问的文件夹位置。
 

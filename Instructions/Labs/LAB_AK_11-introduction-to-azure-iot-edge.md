@@ -190,7 +190,7 @@ lab:
 
 1. 对于 VM 管理员帐户，输入 **用户名**、**密码** 和 **确认密码** 字段的值。
 
-    > **重要事项：**请勿遗失/忘记这些值 - 没有这些值就无法连接到 VM。
+    > **重要事项：** 请勿遗失/忘记这些值 - 没有这些值就无法连接到 VM。
 
 1. 请注意， **“入站端口规则”** 配置为启用入站 **SSH** 访问 VM 的权限。
 
@@ -328,7 +328,7 @@ lab:
 
     这会告诉你连接的是哪个 VM。
 
-    > **重要事项：**连接时，你可能会被告知 Edge VM 有未完成的 OS 更新。  出于实验室目的，我们忽略了这一点，但是在生产环境中，你始终需要确保 Edge 设备保持最新状态。
+    > **重要事项：** 连接时，你可能会被告知 Edge VM 有未完成的 OS 更新。  出于实验室目的，我们忽略了这一点，但是在生产环境中，你始终需要确保 Edge 设备保持最新状态。
 
 1. 若要确认 VM 上是否已安装 Azure IoT Edge 运行时，请运行以下命令：
 
@@ -658,7 +658,7 @@ lab:
 
     有关 `TumblingWindow` 函数的更多信息，请参阅以下链接：[https://docs.microsoft.com/zh-cn/stream-analytics-query/tumbling-window-azure-stream-analytics](https://docs.microsoft.com/zh-cn/stream-analytics-query/tumbling-window-azure-stream-analytics)
 
-1. 在查询编辑器顶部，单击 **“保存查询” **。
+1. 在查询编辑器顶部，单击 **“保存查询”**。
 
 #### 任务 4：配置存储帐户设置
 

@@ -48,7 +48,7 @@ lab:
 
 写入 **lab14 setup.azcli** 脚本并在 **bash** shell 环境中运行 - 执行此操作的最简便方法是在 Azure Cloud Shell 中。
 
->**注：**你将需要 **SimulatedThermostat** 设备的连接字符串。如果你已经在 Azure IoT 中心注册了此设备，则可以通过在 Azure Cloud Shell 中运行以下命令来获取连接字符串
+>**注：** 你将需要 **SimulatedThermostat** 设备的连接字符串。如果你已经在 Azure IoT 中心注册了此设备，则可以通过在 Azure Cloud Shell 中运行以下命令来获取连接字符串
 >
 > ```bash
 > az iot hub device-identity show-connection-string --hub-name AZ-220-HUB-{YOUR-ID} --device-id SimulatedThermostat -o tsv
@@ -964,7 +964,7 @@ IoT Edge 中心模块 (`$edgeHub`) 用于协调设备上运行的 IoT Edge 中�
 1. 要验证 *edgeHub* 模块已正确重启，请输入以下命令：
 
     ```bash
-    iotedge 列表
+    iotedge list
     ```
 
     如果 *edgeHub* 模块无法成功重启，请输入以下命令重试：

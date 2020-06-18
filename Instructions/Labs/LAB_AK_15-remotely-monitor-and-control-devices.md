@@ -71,7 +71,7 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
 **lab15-setup.azcli** 脚本编写为在 **bash** shell 环境中运行 - 执行此操作的最简单方法是在 Azure Cloud Shell 中运行。
 
->**注：**你将需要 **CheeseCaveID** 设备的连接字符串。如果你已经在 Azure IoT 中心注册了此设备，则可以通过在 Azure Cloud Shell 中运行以下命令来获取连接字符串
+>**注：** 你将需要 **CheeseCaveID** 设备的连接字符串。如果你已经在 Azure IoT 中心注册了此设备，则可以通过在 Azure Cloud Shell 中运行以下命令来获取连接字符串
 >
 > ```bash
 > az iot hub device-identity show-connection-string --hub-name AZ-220-HUB-{YOUR-ID} --device-id CheeseCaveID -o tsv
@@ -147,7 +147,7 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
     Location="SETLOCATION"
     ```
 
-    > **注释**：  `Location` 变量应设置为位置的短名称。输入以下命令，可以看到可用位置及其短名称的列表（**“名称”**列）：
+    > **注释**：  `Location` 变量应设置为位置的短名称。输入以下命令，可以看到可用位置及其短名称的列表（**“名称”** 列）：
     >
     > ```bash
     > az account list-locations -o Table
@@ -414,7 +414,7 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
 1. 花几分钟时间查看代码。
 
-    > **重要事项：**通读代码中的注释，注意奶酪储藏室方案的温度和湿度设置是如何被写入代码中的。
+    > **重要事项：** 通读代码中的注释，注意奶酪储藏室方案的温度和湿度设置是如何被写入代码中的。
 
 1. 找到用于分配设备连接字符串的代码行
 
@@ -428,7 +428,7 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
     无需更改其他代码行。
 
-1. 在 **“文件”**菜单，将你的更改保存到 Program.cs 文件，单击 **“保存”**。
+1. 在 **“文件”** 菜单，将你的更改保存到 Program.cs 文件，单击 **“保存”**。
 
 #### 任务 3：测试你的代码以发送遥测
 
