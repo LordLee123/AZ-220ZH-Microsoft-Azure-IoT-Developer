@@ -446,7 +446,7 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
     你应该很快就能看到控制台输出，类似于：
 
-![控制台输出](Media/LAB_AK_15-cheesecave-telemetry.png)
+![控制台输出](media/LAB_AK_15-cheesecave-telemetry.png)
 
     > **注释**：  绿色文本表示一切正常，红色文本表示存在异常。如果没有得到类似于此图片显示的屏幕，请先检查设备连接字符串。
 
@@ -668,7 +668,7 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
     如果不是，请仔细检查你的 IoT 中心服务连接字符串，注意该字符串应该是服务连接字符串，而不是其他任何字符串：
 
-![控制台输出](Media/LAB_AK_15-cheesecave-telemetry-received.png)
+![控制台输出](media/LAB_AK_15-cheesecave-telemetry-received.png)
 
     > **注释**：  绿色文本表示一切正常，红色文本表示存在异常。如果没有得到类似于此图片显示的屏幕，请先检查设备连接字符串。
 
@@ -867,11 +867,11 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
     注意输出类似于以下内容：
 
-![控制台输出](Media/LAB_AK_15-cheesecave-direct-method-sent.png)
+![控制台输出](media/LAB_AK_15-cheesecave-direct-method-sent.png)
 
 1. 现在检查 **cheesecavedevice** 设备应用的控制台输出，你会看到风扇已打开。
 
-![控制台输出](Media/LAB_AK_15-cheesecave-direct-method-received.png)
+![控制台输出](media/LAB_AK_15-cheesecave-direct-method-received.png)
 
 现在已成功监视和控制远程设备。已在设备上实现了可从云中调用的直接方法。在我们的方案中，直接方法用于打开风扇，这将使储藏室中的环境达到我们所需的设置。
 
@@ -1025,11 +1025,11 @@ Contoso 已责成你实现自动化系统，以使储藏室环境保持在控制
 
 1. 检查控制台输出中的 **“奶酪储藏室设备”** 设备应用，并确认设备孪生已正确同步。
 
-![控制台输出](Media/LAB_AK_15-cheesecave-device-twin-received.png)
+![控制台输出](media/LAB_AK_15-cheesecave-device-twin-received.png)
 
     如果我们让风扇正常工作，我们最终应该消除那些红色警报！
 
-![控制台输出](Media/LAB_AK_15-cheesecave-device-twin-success.png)
+![控制台输出](media/LAB_AK_15-cheesecave-device-twin-success.png)
 
 1. 对于这两个 Visual Studio Code 实例，请停止应用，然后关闭 “Visual Studio Code” 窗口。
 
