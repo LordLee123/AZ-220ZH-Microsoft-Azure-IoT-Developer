@@ -8,6 +8,7 @@ RGName="rg-az220"
 
 IoTHubName="iot-az220-training-$YourID"
 DPSName="dps-az220-training-$YourID"
+StorageAccountName="staz220training$YourID"
 
 # ensure variables have been set
 if [ $YourID = "{your-id}" ] || [ $Location = "{your-location}" ]
@@ -88,5 +89,16 @@ then
     printf "${GREEN}Already exists\n${NC}"
 else
     output=$( az iot dps linked-hub create --dps-name $DPSName -g $RGName --connection-string $IoTHubConnectionString --location $Location -o json 2>&1 >> build.log)
+    reportStatus $? "$output"
+fi
+
+# Create a Storage Account
+printf "${YELLOW}Create storage account ${StorageAccountName} - ${NC}"
+exists=$( az storage account list --resource-group ${RGName} --query "[?contains(name, '${StorageAccountName}')].name" -o tsv )
+if [ "${exists}" == "${StorageAccountName}" ]
+then
+    printf "${GREEN}Already exists\n${NC}"
+else
+    output=$( az storage account create --name $StorageAccountName --resource-group $RGName --location $Location --sku Standard_LRS -o table 2>&1 >> build.log )
     reportStatus $? "$output"
 fi
